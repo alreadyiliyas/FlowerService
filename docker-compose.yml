@@ -1,0 +1,29 @@
+services:
+  tarantool:
+    image: tarantool/tarantool:3.6
+    container_name: tarantool
+    ports:
+      - "3301:3301"
+    volumes:
+      - ./tarantool:/opt/tarantool
+      - ./data:/var/lib/tarantool
+    working_dir: /opt/tarantool
+    environment:
+      TARANTOOL_LOG: /dev/stdout
+      TARANTOOL_LOG_LEVEL: 5
+    command: tarantool init.lua
+
+  auth:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    container_name: flower-auth
+    env_file: .env
+    depends_on:
+      tarantool:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+volumes:
+  tarantool_data:
