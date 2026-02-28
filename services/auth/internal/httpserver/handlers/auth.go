@@ -33,12 +33,16 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidInput):
 			utils.Send(w, http.StatusBadRequest, nil, err.Error())
-		case errors.Is(err, apperrors.ErrDuplicatePhone):
+			return
+		case errors.Is(err, apperrors.ErrDuplicate):
 			utils.Send(w, http.StatusConflict, nil, err.Error())
+			return
 		case errors.Is(err, apperrors.ErrNotFound):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
+			return
 		default:
 			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+			return
 		}
 	}
 

@@ -1,0 +1,23 @@
+# env/secrets
+.env
+.env.*
+
+# editor
+.vscode/
+.idea/
+
+# go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+bin/
+
+# coverage
+coverage.out
+
+# local data
+data/
