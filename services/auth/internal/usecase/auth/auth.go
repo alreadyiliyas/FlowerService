@@ -1,8 +1,9 @@
-package usecase
+﻿package usecase
 
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/ilyas/flower/services/auth/internal/apperrors"
 	"github.com/ilyas/flower/services/auth/internal/config"
@@ -45,6 +46,7 @@ func (ac *authUsecase) Registration(ctx context.Context, dtoReq dto.Registration
 
 	createdUser, err := ac.trRepo.CreateUser(ctx, &userEntity, &accEntity)
 	if err != nil {
+		log.Printf("| usecase | create user error: %v", err)
 		return nil, err
 	}
 

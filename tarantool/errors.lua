@@ -1,0 +1,6 @@
+local M = {
+    PHONE_ALREADY_EXISTS = "PHONE_ALREADY_EXISTS",
+    ROLE_NOT_FOUND = "ROLE_NOT_FOUND",
+}
+
+return M

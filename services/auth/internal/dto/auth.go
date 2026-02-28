@@ -28,6 +28,7 @@ type UpdatePasswordRequest struct {
 	OldPassword *string `json:"old_password,omitempty"`
 	NewPassword *string `json:"new_password,omitempty"`
 }
+
 type VerifyAccountRequest struct {
 	PhoneNumber *string `json:"phone_number,omitempty"`
 	Code        *string `json:"code,omitempty"`

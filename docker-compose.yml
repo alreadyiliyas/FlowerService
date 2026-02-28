@@ -11,19 +11,7 @@ services:
     environment:
       TARANTOOL_LOG: /dev/stdout
       TARANTOOL_LOG_LEVEL: 5
-    command: tarantool init.lua
-
-  auth:
-    build:
-      context: .
-      dockerfile: services/auth/Dockerfile
-    container_name: flower-auth
-    env_file: .env
-    depends_on:
-      tarantool:
-        condition: service_healthy
-    ports:
-      - "8080:8080"
+    command: tarantool /opt/tarantool/init.lua
 
 volumes:
   tarantool_data:
