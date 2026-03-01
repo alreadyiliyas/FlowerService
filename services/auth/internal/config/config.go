@@ -3,24 +3,32 @@ package config
 import (
 	"fmt"
 	"os"
+
+	"github.com/ilyas/flower/services/auth/internal/utils"
 )
 
-// HTTPConfig описывает настройки HTTP-сервера.
 type HTTPConfig struct {
 	Address string
 }
 
-// TarantoolConfig описывает настройки подключения к Tarantool.
 type TarantoolConfig struct {
 	Addr     string
 	User     string
 	Password string
 }
 
-// Config — общий конфиг сервиса.
+type RedisConfig struct {
+	Addr                string
+	Password            string
+	DB                  int
+	ConfirmationCodeTTL int
+}
+
+// общий конфиг сервиса.
 type Config struct {
 	HTTP      HTTPConfig
 	Tarantool TarantoolConfig
+	Redis     RedisConfig
 }
 
 // Load загружает конфиг из переменных окружения с дефолтами.
@@ -42,6 +50,22 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	redisAddr, err := getEnv("REDIS_ADDR")
+	if err != nil {
+		return nil, err
+	}
+	redisPassword, err := getEnv("REDIS_PASSWORD")
+	if err != nil {
+		return nil, err
+	}
+	redisDB, err := getEnv("REDIS_DB")
+	if err != nil {
+		return nil, err
+	}
+	redisDBInt, err := utils.ToInt(redisDB, "REDIS_DB")
+	if err != nil {
+		return nil, err
+	}
 	return &Config{
 		HTTP: HTTPConfig{
 			Address: httpAddr,
@@ -50,6 +74,12 @@ func Load() (*Config, error) {
 			Addr:     tntAddr,
 			User:     tntUser,
 			Password: tntPassword,
+		},
+		Redis: RedisConfig{
+			Addr:                redisAddr,
+			Password:            redisPassword,
+			DB:                  redisDBInt,
+			ConfirmationCodeTTL: 0,
 		},
 	}, nil
 }

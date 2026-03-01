@@ -4,24 +4,28 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/ilyas/flower/services/auth/internal/apperrors"
 	"github.com/ilyas/flower/services/auth/internal/config"
 	"github.com/ilyas/flower/services/auth/internal/dto"
 	"github.com/ilyas/flower/services/auth/internal/entities"
 	auth "github.com/ilyas/flower/services/auth/internal/repositories/auth"
+	cache "github.com/ilyas/flower/services/auth/internal/repositories/cache"
 	"github.com/ilyas/flower/services/auth/internal/utils"
 )
 
 type authUsecase struct {
-	cfg    *config.Config
-	trRepo auth.AuthRepository
+	cfg       *config.Config
+	trRepo    auth.AuthRepository
+	cacheRepo cache.CacheRepository
 }
 
-func New(cfg *config.Config, repo auth.AuthRepository) Usecase {
+func New(cfg *config.Config, ar auth.AuthRepository, cr cache.CacheRepository) Usecase {
 	return &authUsecase{
-		cfg:    cfg,
-		trRepo: repo,
+		cfg:       cfg,
+		trRepo:    ar,
+		cacheRepo: cr,
 	}
 }
 
@@ -50,10 +54,10 @@ func (ac *authUsecase) Registration(ctx context.Context, dtoReq dto.Registration
 		return nil, err
 	}
 
-	// err = ac.SendConfirmationCode(ctx, &dtoReq.PhoneNumber)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err = ac.SendConfirmationCode(ctx, &dtoReq.PhoneNumber)
+	if err != nil {
+		return nil, err
+	}
 
 	res := dto.RegistrationResponse{
 		UserID:      createdUser.Id,
@@ -65,4 +69,48 @@ func (ac *authUsecase) Registration(ctx context.Context, dtoReq dto.Registration
 	}
 
 	return &res, nil
+}
+
+func (ac *authUsecase) SendConfirmationCode(ctx context.Context, phone *string) error {
+	if phone == nil || *phone == "" {
+		return fmt.Errorf("%w: нельзя задать пустой номер телефона", apperrors.ErrInvalidInput)
+	}
+
+	code, err := utils.RandomConfirmCode()
+	if err != nil {
+		return fmt.Errorf("| usecase | SendConfirmationCode | %w", err)
+	}
+
+	ttl := time.Duration(15 * time.Minute)
+
+	err = ac.cacheRepo.SaveConfirmationCode(ctx, phone, &code, ttl)
+	if err != nil {
+		return fmt.Errorf("| usecase | SaveConfirmationCode | %w", err)
+	}
+
+	return nil
+}
+
+func (ac *authUsecase) VerifyAccount(ctx context.Context, dtoReq dto.VerifyAccountRequest) error {
+	if dtoReq.PhoneNumber == nil || *dtoReq.PhoneNumber == "" {
+		return fmt.Errorf("%w: задан пустой номер телефона", apperrors.ErrInvalidInput)
+	}
+
+	cacheCode, err := ac.cacheRepo.GetConfirmCode(ctx, dtoReq.PhoneNumber)
+	if err != nil {
+		log.Printf("| usecase | verify account | read cache error: %v", err)
+		return fmt.Errorf("%w: код подтверждения истек", apperrors.ErrNotFound)
+	}
+
+	if *dtoReq.Code != cacheCode {
+		return fmt.Errorf("%w: не верный код подтверждения", apperrors.ErrInvalidInput)
+	}
+
+	err = ac.trRepo.VerifyAccount(ctx, dtoReq.PhoneNumber)
+	if err != nil {
+		log.Printf("| usecase | verify account | activate in tarantoolDB error: %v", err)
+		return err
+	}
+
+	return nil
 }

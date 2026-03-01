@@ -18,7 +18,7 @@ type Config struct {
 func New(ctx context.Context, cfg Config) (*tnt.Connection, error) {
 	// ToDo вынести в конфиг
 	opts := tnt.Opts{
-		Timeout:       3 * time.Second,
+		Timeout:       10 * time.Second,
 		Reconnect:     1 * time.Second,
 		MaxReconnects: 5,
 	}

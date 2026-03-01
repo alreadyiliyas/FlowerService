@@ -9,7 +9,9 @@ import (
 
 	"github.com/ilyas/flower/services/auth/internal/config"
 	"github.com/ilyas/flower/services/auth/internal/httpserver"
-	repositories "github.com/ilyas/flower/services/auth/internal/repositories/auth"
+	redisclient "github.com/ilyas/flower/services/auth/internal/redis"
+	authRepo "github.com/ilyas/flower/services/auth/internal/repositories/auth"
+	cacheRepo "github.com/ilyas/flower/services/auth/internal/repositories/cache"
 	tntclient "github.com/ilyas/flower/services/auth/internal/tarantool"
 	authusecase "github.com/ilyas/flower/services/auth/internal/usecase/auth"
 )
@@ -34,8 +36,19 @@ func Run() error {
 	}
 	defer tntConn.Close()
 
-	authRepo := repositories.NewTarantoolRepository(tntConn)
-	authUC := authusecase.New(cfg, authRepo)
+	redisConn, err := redisclient.New(ctx, redisclient.Config{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to connect to Redis: %w", err)
+	}
+	defer redisConn.Close()
+
+	authRepo := authRepo.NewTarantoolRepository(tntConn)
+	cacheRepo := cacheRepo.NewRedisRepository(redisConn)
+	authUC := authusecase.New(cfg, authRepo, cacheRepo)
 
 	httpSrv := httpserver.New(httpserver.Config{
 		Address: cfg.HTTP.Address,

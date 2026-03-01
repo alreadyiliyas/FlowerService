@@ -1,0 +1,17 @@
+﻿credentials:
+  users:
+    app:
+      password: secret
+      roles: [super]
+
+groups:
+  group-001:
+    replicasets:
+      replicaset-001:
+        instances:
+          instance-001:
+            iproto:
+              listen:
+                - uri: 0.0.0.0:3301
+            app:
+              file: /opt/tarantool/app.lua

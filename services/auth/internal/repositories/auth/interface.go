@@ -9,7 +9,7 @@ import (
 type AuthRepository interface {
 	CreateUser(ctx context.Context, user *entities.User, account *entities.Auth) (*entities.User, error)
 	GetAccountByPhoneNumber(ctx context.Context, in *string) (*entities.Auth, error)
-	VerifyAccount(ctx context.Context, account *entities.Auth) error
+	VerifyAccount(ctx context.Context, phoneNumber *string) error
 	SetPassword(ctx context.Context, account *entities.Auth) error
 	GetPassword(ctx context.Context, in *string) (*string, error)
 }

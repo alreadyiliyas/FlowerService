@@ -21,3 +21,8 @@ coverage.out
 
 # local data
 data/
+
+# tarantool local runtime artifacts
+tarantool/var/
+tarantool/*.xlog
+tarantool/*.snap

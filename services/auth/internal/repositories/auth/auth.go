@@ -3,10 +3,12 @@
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	tnt "github.com/tarantool/go-tarantool/v2"
 
+	"github.com/ilyas/flower/services/auth/internal/apperrors"
 	"github.com/ilyas/flower/services/auth/internal/entities"
 	convert "github.com/ilyas/flower/services/auth/internal/utils"
 )
@@ -20,16 +22,18 @@ func NewTarantoolRepository(conn *tnt.Connection) AuthRepository {
 }
 
 func (r *tarantoolRepository) CreateUser(ctx context.Context, user *entities.User, account *entities.Auth) (*entities.User, error) {
-	req := tnt.NewCallRequest("create_user").Args([]interface{}{
-		*user.FirstName,
-		*user.LastName,
-		*account.PhoneNumber,
-		*user.Role,
-	})
+	req := tnt.NewCallRequest("create_user").
+		Args([]interface{}{
+			*user.FirstName,
+			*user.LastName,
+			*account.PhoneNumber,
+			*user.Role,
+		}).
+		Context(ctx)
 
 	resp, err := r.conn.Do(req).Get()
 	if err != nil {
-		return nil, err
+		return nil, convert.MapTarantoolError(err)
 	}
 	if len(resp) == 0 {
 		return nil, errors.New("empty response from create_user")
@@ -48,6 +52,7 @@ func (r *tarantoolRepository) CreateUser(ctx context.Context, user *entities.Use
 	if err != nil {
 		return nil, err
 	}
+
 	lastName, err := convert.ToString(row[2], "last_name")
 	if err != nil {
 		return nil, err
@@ -80,9 +85,28 @@ func (r *tarantoolRepository) GetAccountByPhoneNumber(ctx context.Context, in *s
 	return nil, errors.New("not implemented")
 }
 
-func (r *tarantoolRepository) VerifyAccount(ctx context.Context, account *entities.Auth) error {
-	// TODO: Реализовать верификацию аккаунта в Тарантуле
-	return errors.New("not implemented")
+func (r *tarantoolRepository) VerifyAccount(ctx context.Context, phoneNumber *string) error {
+	req := tnt.NewCallRequest("verify_account").
+		Args([]interface{}{*phoneNumber}).
+		Context(ctx)
+
+	resp, err := r.conn.Do(req).Get()
+	if err != nil {
+		return convert.MapTarantoolError(err)
+	}
+	if len(resp) == 0 {
+		return fmt.Errorf("%w: verify_account returned empty response", apperrors.ErrDB)
+	}
+
+	ok, isBool := resp[0].(bool)
+	if !isBool {
+		return fmt.Errorf("%w: invalid verify_account response type %T", apperrors.ErrDB, resp[0])
+	}
+	if !ok {
+		return fmt.Errorf("%w: user didn't activate", apperrors.ErrDB)
+	}
+
+	return nil
 }
 
 func (r *tarantoolRepository) SetPassword(ctx context.Context, account *entities.Auth) error {

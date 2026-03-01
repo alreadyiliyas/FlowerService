@@ -1,4 +1,3 @@
--- /c:/Users/ILYAS/GolandProjects/Flower/tarantool/runner.lua
 local M = {}
 
 local function ensure_migrations_space()

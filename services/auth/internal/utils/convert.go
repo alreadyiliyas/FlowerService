@@ -3,6 +3,7 @@
 import (
 	"fmt"
 	"math"
+	"strconv"
 )
 
 func ToString(v interface{}, field string) (string, error) {
@@ -55,6 +56,29 @@ func ToUint64(v interface{}, field string) (uint64, error) {
 			return 0, fmt.Errorf("invalid %s value: got %v, must be non-negative integer", field, n)
 		}
 		return uint64(n), nil
+	default:
+		return 0, fmt.Errorf("invalid %s type: got %T, want unsigned integer", field, v)
+	}
+}
+
+func ToInt(v interface{}, field string) (int, error) {
+	switch n := v.(type) {
+	case int64:
+		return int(n), nil
+	case int32:
+		return int(n), nil
+	case int16:
+		return int(n), nil
+	case int8:
+		return int(n), nil
+	case int:
+		return int(n), nil
+	case string:
+		atoi, err := strconv.Atoi(n)
+		if err != nil {
+			return 0, fmt.Errorf("%s: can't convert to int from %T type", field, v)
+		}
+		return atoi, nil
 	default:
 		return 0, fmt.Errorf("invalid %s type: got %T, want unsigned integer", field, v)
 	}

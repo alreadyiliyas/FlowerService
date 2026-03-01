@@ -1,7 +1,8 @@
-services:
+﻿services:
   tarantool:
     image: tarantool/tarantool:3.6
     container_name: tarantool
+    restart: unless-stopped
     ports:
       - "3301:3301"
     volumes:
@@ -11,7 +12,33 @@ services:
     environment:
       TARANTOOL_LOG: /dev/stdout
       TARANTOOL_LOG_LEVEL: 5
-    command: tarantool /opt/tarantool/init.lua
+      TARANTOOL_USER: ${TARANTOOL_USER}
+      TARANTOOL_PASSWORD: ${TARANTOOL_PASSWORD}
+    entrypoint: ["tarantool"]
+    command: ["--name", "instance-001", "--config", "/opt/tarantool/config.yaml"]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -lc 'cat < /dev/null > /dev/tcp/127.0.0.1/3301'"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
 volumes:
   tarantool_data:
+
