@@ -27,3 +27,7 @@ func (r *redisRepo) GetConfirmCode(ctx context.Context, phone *string) (string, 
 	}
 	return code, nil
 }
+
+func (r *redisRepo) DeleteConfirmCode(ctx context.Context, phone *string) error {
+	return r.client.Del(ctx, *phone).Err()
+}

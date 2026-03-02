@@ -112,6 +112,10 @@ func (ac *authUsecase) VerifyAccount(ctx context.Context, dtoReq dto.VerifyAccou
 		return err
 	}
 
+	if err := ac.cacheRepo.DeleteConfirmCode(ctx, dtoReq.PhoneNumber); err != nil {
+		log.Printf("| usecase | delete confirm code | error: %v", err)
+	}
+
 	return nil
 }
 
