@@ -18,8 +18,10 @@ var (
 
 // Others
 var (
-	ErrUnauthorized  = errors.New("не авторизован")
-	ErrInvalidInput  = errors.New("неверные входные данные")
-	ErrAlreadyActive = errors.New("пользователь уже активирован")
-	ErrDB            = errors.New("непредвиденная ошибка сервера")
+	ErrUnauthorized       = errors.New("не авторизован")
+	ErrInvalidInput       = errors.New("неверные входные данные")
+	ErrAlreadyActive      = errors.New("пользователь уже активирован")
+	ErrAlreadyNotActive   = errors.New("пользователь еще не активирован")
+	ErrAlreadySetPassword = errors.New("пользователь уже есть пароль")
+	ErrDB                 = errors.New("непредвиденная ошибка сервера")
 )

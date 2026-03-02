@@ -55,4 +55,34 @@ function M.verify_account(phone_number)
     end)
 end
 
+function M.set_password(phone_number, password_hash)
+    return box.atomic(function ()
+        local account = box.space.auths.index.phone_number:get{phone_number}
+        if account == nil then
+            error(E.ACCOUNT_NOT_FOUND)
+        end
+
+        local user = box.space.users:get{account.user_id}
+        if user == nil then
+            error(E.USER_NOT_FOUND)
+        end
+
+        if user.is_active == false then
+            error(E.ALREADY_NOT_ACTIVE)
+        end
+
+        if user.password_hash ~= nil then
+            error(E.USER_SET_PASSWORD)
+        end
+
+        local now = os.time()
+        box.space.auths:update(user.id, {
+            {"=", 7, password_hash},    -- password_hash
+            {"=", 8, now},              -- updated_at
+        })
+
+        return true
+    end)
+end
+
 return M

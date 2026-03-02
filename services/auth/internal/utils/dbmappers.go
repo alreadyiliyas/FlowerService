@@ -17,6 +17,8 @@ var tarantoolRules = []DBRule{
 	{DBerr: "ACCOUNT_NOT_FOUND", Err: apperrors.ErrAccountNotFound},
 	{DBerr: "USER_NOT_FOUND", Err: apperrors.ErrUserNotFound},
 	{DBerr: "ALREADY_ACTIVE", Err: apperrors.ErrInvalidInput},
+	{DBerr: "ALREADY_NOT_ACTIVE", Err: apperrors.ErrAlreadyNotActive},
+	{DBerr: "USER_SET_PASSWORD", Err: apperrors.ErrAlreadySetPassword},
 }
 
 func MapDBError(err error, rules []DBRule) error {

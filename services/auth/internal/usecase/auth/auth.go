@@ -114,3 +114,30 @@ func (ac *authUsecase) VerifyAccount(ctx context.Context, dtoReq dto.VerifyAccou
 
 	return nil
 }
+
+func (ac *authUsecase) SetPassword(ctx context.Context, dtoReq dto.SetPasswordRequest) error {
+	if dtoReq.PhoneNumber == nil || *dtoReq.PhoneNumber == "" {
+		return fmt.Errorf("%w: задан пустой номер телефона", apperrors.ErrInvalidInput)
+	}
+
+	err := utils.IsValidatePassword(*dtoReq.Password)
+	if err != nil {
+		return err
+	}
+
+	hash, err := utils.HashPassword(*dtoReq.Password)
+	if err != nil {
+		return fmt.Errorf("%w: не удалось захешировать пароль", apperrors.ErrDB)
+	}
+	account := &entities.Auth{
+		PhoneNumber:  dtoReq.PhoneNumber,
+		PasswordHash: &hash,
+	}
+
+	if err = ac.trRepo.SetPassword(ctx, account); err != nil {
+		log.Printf("| usecase | set password | set password error: %v", err)
+		return err
+	}
+
+	return nil
+}

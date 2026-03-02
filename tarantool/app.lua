@@ -9,5 +9,6 @@ runner.run({
 
 _G.create_user = auth.create_user
 _G.verify_account = auth.verify_account
+_G.set_password = auth.set_password
 
 log.info("Tarantool app loaded")

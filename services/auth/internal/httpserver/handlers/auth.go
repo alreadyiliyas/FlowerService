@@ -80,13 +80,23 @@ func (h *AuthHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: валидация (phone_number и password обязательны)
-	// TODO: проверка, что пользователь существует
-	// TODO: хеширование пароля (bcrypt)
-	// TODO: сохранение password_hash в authRepo
+	err := h.usecase.SetPassword(r.Context(), req)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidInput), errors.Is(err, apperrors.ErrAlreadyNotActive), errors.Is(err, apperrors.ErrAlreadySetPassword):
+			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+			return
+		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrAccountNotFound), errors.Is(err, apperrors.ErrUserNotFound):
+			utils.Send(w, http.StatusNotFound, nil, err.Error())
+			return
+		default:
+			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+			return
+		}
+	}
 
+	utils.Send(w, http.StatusCreated, nil, "Пароль успешно установлен")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "password set"})
 }
 
 func (h *AuthHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {

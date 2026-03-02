@@ -110,8 +110,28 @@ func (r *tarantoolRepository) VerifyAccount(ctx context.Context, phoneNumber *st
 }
 
 func (r *tarantoolRepository) SetPassword(ctx context.Context, account *entities.Auth) error {
-	// TODO: Реализовать установку пароля в Тарантуле
-	return errors.New("not implemented")
+	req := tnt.NewCallRequest("set_password").
+		Args([]interface{}{*account.PhoneNumber, *account.PasswordHash}).
+		Context(ctx)
+
+	resp, err := r.conn.Do(req).Get()
+	if err != nil {
+		return convert.MapTarantoolError(err)
+	}
+
+	if len(resp) == 0 {
+		return fmt.Errorf("%w: set_password returned empty response", apperrors.ErrDB)
+	}
+
+	ok, isBool := resp[0].(bool)
+	if !isBool {
+		return fmt.Errorf("%w: invalid set_password response type %T", apperrors.ErrDB, resp[0])
+	}
+	if !ok {
+		return fmt.Errorf("%w: password of user didn't set", apperrors.ErrDB)
+	}
+
+	return nil
 }
 
 func (r *tarantoolRepository) GetPassword(ctx context.Context, in *string) (*string, error) {
