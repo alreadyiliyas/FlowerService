@@ -46,9 +46,9 @@ function M.verify_account(phone_number)
 
         local now = os.time()
         box.space.users:update(user.id, {
-            {"=", 6, true},             -- is_active
-            {"=", 8, now},              -- updated_at
-            {"=", 5, user.version + 1}, -- version
+            {"=", 6, true},
+            {"=", 8, now},
+            {"=", 5, user.version + 1},
         })
 
         return true
@@ -56,7 +56,7 @@ function M.verify_account(phone_number)
 end
 
 function M.set_password(phone_number, password_hash)
-    return box.atomic(function ()
+    return box.atomic(function()
         local account = box.space.auths.index.phone_number:get{phone_number}
         if account == nil then
             error(E.ACCOUNT_NOT_FOUND)
@@ -71,14 +71,40 @@ function M.set_password(phone_number, password_hash)
             error(E.ALREADY_NOT_ACTIVE)
         end
 
-        if user.password_hash ~= nil then
+        if account.password_hash ~= nil then
             error(E.USER_SET_PASSWORD)
         end
 
         local now = os.time()
-        box.space.auths:update(user.id, {
-            {"=", 7, password_hash},    -- password_hash
-            {"=", 8, now},              -- updated_at
+        box.space.auths:update(account.id, {
+            {"=", 7, password_hash},
+            {"=", 8, now},
+        })
+
+        return true
+    end)
+end
+
+function M.update_password(phone_number, password_hash)
+    return box.atomic(function()
+        local account = box.space.auths.index.phone_number:get{phone_number}
+        if account == nil then
+            error(E.ACCOUNT_NOT_FOUND)
+        end
+
+        local user = box.space.users:get{account.user_id}
+        if user == nil then
+            error(E.USER_NOT_FOUND)
+        end
+
+        if user.is_active == false then
+            error(E.ALREADY_NOT_ACTIVE)
+        end
+
+        local now = os.time()
+        box.space.auths:update(account.id, {
+            {"=", 7, password_hash},
+            {"=", 8, now},
         })
 
         return true

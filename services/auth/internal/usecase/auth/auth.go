@@ -54,8 +54,7 @@ func (ac *authUsecase) Registration(ctx context.Context, dtoReq dto.Registration
 		return nil, err
 	}
 
-	err = ac.SendConfirmationCode(ctx, &dtoReq.PhoneNumber)
-	if err != nil {
+	if err := ac.SendConfirmationCode(ctx, &dtoReq.PhoneNumber); err != nil {
 		return nil, err
 	}
 
@@ -75,16 +74,16 @@ func (ac *authUsecase) SendConfirmationCode(ctx context.Context, phone *string) 
 	if phone == nil || *phone == "" {
 		return fmt.Errorf("%w: нельзя задать пустой номер телефона", apperrors.ErrInvalidInput)
 	}
+	if !utils.IsValidPhoneNumber(*phone) {
+		return fmt.Errorf("%w: проверьте номер телефона", apperrors.ErrInvalidInput)
+	}
 
 	code, err := utils.RandomConfirmCode()
 	if err != nil {
 		return fmt.Errorf("| usecase | SendConfirmationCode | %w", err)
 	}
 
-	ttl := time.Duration(15 * time.Minute)
-
-	err = ac.cacheRepo.SaveConfirmationCode(ctx, phone, &code, ttl)
-	if err != nil {
+	if err := ac.cacheRepo.Set(ctx, utils.BuildConfirmKey(*phone), code, 15*time.Minute); err != nil {
 		return fmt.Errorf("| usecase | SaveConfirmationCode | %w", err)
 	}
 
@@ -95,25 +94,31 @@ func (ac *authUsecase) VerifyAccount(ctx context.Context, dtoReq dto.VerifyAccou
 	if dtoReq.PhoneNumber == nil || *dtoReq.PhoneNumber == "" {
 		return fmt.Errorf("%w: задан пустой номер телефона", apperrors.ErrInvalidInput)
 	}
+	if dtoReq.Code == nil || *dtoReq.Code == "" {
+		return fmt.Errorf("%w: задан пустой код подтверждения", apperrors.ErrInvalidInput)
+	}
+	if !utils.IsValidPhoneNumber(*dtoReq.PhoneNumber) {
+		return fmt.Errorf("%w: проверьте номер телефона", apperrors.ErrInvalidInput)
+	}
 
-	cacheCode, err := ac.cacheRepo.GetConfirmCode(ctx, dtoReq.PhoneNumber)
+	key := utils.BuildConfirmKey(*dtoReq.PhoneNumber)
+	cacheCode, err := ac.cacheRepo.Get(ctx, key)
 	if err != nil {
-		log.Printf("| usecase | verify account | read cache error: %v", err)
+		log.Printf("| usecase | VerifyAccount | read cache error: %v", err)
 		return fmt.Errorf("%w: код подтверждения истек", apperrors.ErrNotFound)
 	}
 
 	if *dtoReq.Code != cacheCode {
-		return fmt.Errorf("%w: не верный код подтверждения", apperrors.ErrInvalidInput)
+		return fmt.Errorf("%w: неверный код подтверждения", apperrors.ErrInvalidInput)
 	}
 
-	err = ac.trRepo.VerifyAccount(ctx, dtoReq.PhoneNumber)
-	if err != nil {
-		log.Printf("| usecase | verify account | activate in tarantoolDB error: %v", err)
-		return err
+	if err := ac.trRepo.VerifyAccount(ctx, dtoReq.PhoneNumber); err != nil {
+		log.Printf("| usecase | VerifyAccount | ошибка авторизации: %v", err)
+		return fmt.Errorf("%w: %v", apperrors.ErrDB, err)
 	}
 
-	if err := ac.cacheRepo.DeleteConfirmCode(ctx, dtoReq.PhoneNumber); err != nil {
-		log.Printf("| usecase | delete confirm code | error: %v", err)
+	if err := ac.cacheRepo.Del(ctx, key); err != nil {
+		log.Printf("| usecase | VerifyAccount | ошибка при удалении в кеше: %v", err)
 	}
 
 	return nil
@@ -121,26 +126,107 @@ func (ac *authUsecase) VerifyAccount(ctx context.Context, dtoReq dto.VerifyAccou
 
 func (ac *authUsecase) SetPassword(ctx context.Context, dtoReq dto.SetPasswordRequest) error {
 	if dtoReq.PhoneNumber == nil || *dtoReq.PhoneNumber == "" {
+		log.Printf("| usecase | SetPassword | задан пустой номер телефона")
 		return fmt.Errorf("%w: задан пустой номер телефона", apperrors.ErrInvalidInput)
 	}
-
-	err := utils.IsValidatePassword(*dtoReq.Password)
-	if err != nil {
-		return err
+	if dtoReq.Password == nil || *dtoReq.Password == "" {
+		log.Printf("| usecase | SetPassword | проверка на валидацию пароля")
+		return fmt.Errorf("%w: задан пустой пароль", apperrors.ErrInvalidInput)
+	}
+	if !utils.IsValidPhoneNumber(*dtoReq.PhoneNumber) {
+		log.Printf("| usecase | SetPassword | проверка на валидацию номера телефона")
+		return fmt.Errorf("%w: проверьте номер телефона", apperrors.ErrInvalidInput)
+	}
+	if err := utils.IsValidatePassword(*dtoReq.Password); err != nil {
+		log.Printf("| usecase | SetPassword | проверка на валидацию пароля: %v", err)
+		return fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, err)
 	}
 
 	hash, err := utils.HashPassword(*dtoReq.Password)
 	if err != nil {
+		log.Printf("| usecase | SetPassword | не удалось захешировать пароль: %v", err)
 		return fmt.Errorf("%w: не удалось захешировать пароль", apperrors.ErrDB)
 	}
-	account := &entities.Auth{
-		PhoneNumber:  dtoReq.PhoneNumber,
-		PasswordHash: &hash,
+
+	account := &entities.Auth{PhoneNumber: dtoReq.PhoneNumber, PasswordHash: &hash}
+	if err := ac.trRepo.SetPassword(ctx, account); err != nil {
+		log.Printf("| usecase | SetPassword | set password error: %v", err)
+		return fmt.Errorf("%w: %v", apperrors.ErrDB, err)
 	}
 
-	if err = ac.trRepo.SetPassword(ctx, account); err != nil {
-		log.Printf("| usecase | set password | set password error: %v", err)
-		return err
+	return nil
+}
+
+func (ac *authUsecase) SendCodeToUpdatePassword(ctx context.Context, phoneNumber *string) error {
+	if phoneNumber == nil || *phoneNumber == "" {
+		log.Printf("| usecase | SendCodeToUpdatePassword | задан пустой номер телефона")
+		return fmt.Errorf("%w: задан пустой номер телефона", apperrors.ErrInvalidInput)
+	}
+	if !utils.IsValidPhoneNumber(*phoneNumber) {
+		log.Printf("| usecase | SendCodeToUpdatePassword | проверка на валидацию номера телефона")
+		return fmt.Errorf("%w: проверьте номер телефона", apperrors.ErrInvalidInput)
+	}
+
+	code, err := utils.RandomConfirmCode()
+	if err != nil {
+		log.Printf("| usecase | SendCodeToUpdatePassword | error when generate code: %w", err)
+		return fmt.Errorf("%w: %v", apperrors.ErrDB, err)
+	}
+
+	if err := ac.cacheRepo.Set(ctx, utils.BuildPasswordUpdateKey(*phoneNumber), code, 30*time.Minute); err != nil {
+		log.Printf("| usecase | SendCodeToUpdatePassword | error to set code: %w", err)
+		return fmt.Errorf("%w: %v", apperrors.ErrDB, err)
+	}
+
+	return nil
+}
+
+func (ac *authUsecase) UpdatePassword(ctx context.Context, dtoReq dto.ConfirmUpdatePasswordRequest) error {
+	if dtoReq.PhoneNumber == nil || *dtoReq.PhoneNumber == "" {
+		log.Printf("| usecase | UpdatePassword | задан пустой номер телефона")
+		return fmt.Errorf("%w: задан пустой номер телефона", apperrors.ErrInvalidInput)
+	}
+	if dtoReq.Code == nil || *dtoReq.Code == "" {
+		log.Printf("| usecase | UpdatePassword | задан пустой код подтверждения")
+		return fmt.Errorf("%w: задан пустой код подтверждения", apperrors.ErrInvalidInput)
+	}
+	if dtoReq.NewPassword == nil || *dtoReq.NewPassword == "" {
+		log.Printf("| usecase | UpdatePassword | задан пустой пароль")
+		return fmt.Errorf("%w: задан пустой пароль", apperrors.ErrInvalidInput)
+	}
+	if !utils.IsValidPhoneNumber(*dtoReq.PhoneNumber) {
+		log.Printf("| usecase | UpdatePassword | проверка на валидацию номера телефона")
+		return fmt.Errorf("%w: проверьте номер телефона", apperrors.ErrInvalidInput)
+	}
+	if err := utils.IsValidatePassword(*dtoReq.NewPassword); err != nil {
+		log.Printf("| usecase | UpdatePassword | проверка на валидацию пароля: %v", err)
+		return fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, err)
+	}
+
+	key := utils.BuildPasswordUpdateKey(*dtoReq.PhoneNumber)
+	cacheCode, err := ac.cacheRepo.Get(ctx, key)
+	if err != nil {
+		log.Printf("| usecase | UpdatePassword | read cache error: %v", err)
+		return fmt.Errorf("%w: код подтверждения истек", apperrors.ErrNotFound)
+	}
+
+	if *dtoReq.Code != cacheCode {
+		return fmt.Errorf("%w: неверный код подтверждения", apperrors.ErrInvalidInput)
+	}
+
+	hash, err := utils.HashPassword(*dtoReq.NewPassword)
+	if err != nil {
+		return fmt.Errorf("%w: не удалось захешировать пароль", apperrors.ErrDB)
+	}
+
+	account := &entities.Auth{PhoneNumber: dtoReq.PhoneNumber, PasswordHash: &hash}
+	if err := ac.trRepo.UpdatePassword(ctx, account); err != nil {
+		log.Printf("| usecase | update password | db error: %v", err)
+		return fmt.Errorf("%w: не установить пароль", apperrors.ErrDB)
+	}
+
+	if err := ac.cacheRepo.Del(ctx, key); err != nil {
+		log.Printf("| usecase | update password | delete code error: %v", err)
 	}
 
 	return nil

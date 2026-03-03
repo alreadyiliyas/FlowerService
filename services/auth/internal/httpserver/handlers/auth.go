@@ -32,17 +32,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidInput):
 			utils.Send(w, http.StatusBadRequest, nil, err.Error())
-			return
 		case errors.Is(err, apperrors.ErrDuplicate), errors.Is(err, apperrors.ErrDuplicatePhone):
 			utils.Send(w, http.StatusConflict, nil, err.Error())
-			return
 		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrRoleNotFound):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
-			return
 		default:
 			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
-			return
 		}
+		return
 	}
 
 	utils.Send(w, http.StatusCreated, resp, "Пользователь успешно создан, пожалуйста активируйте аккаунт")
@@ -60,14 +57,12 @@ func (h *AuthHandler) VerifyAccount(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidInput):
 			utils.Send(w, http.StatusBadRequest, nil, err.Error())
-			return
 		case errors.Is(err, apperrors.ErrNotFound):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
-			return
 		default:
 			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
-			return
 		}
+		return
 	}
 
 	utils.Send(w, http.StatusCreated, nil, "Пользователь успешно активирован")
@@ -85,34 +80,59 @@ func (h *AuthHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidInput), errors.Is(err, apperrors.ErrAlreadyNotActive), errors.Is(err, apperrors.ErrAlreadySetPassword):
 			utils.Send(w, http.StatusBadRequest, nil, err.Error())
-			return
 		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrAccountNotFound), errors.Is(err, apperrors.ErrUserNotFound):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
-			return
 		default:
 			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
-			return
 		}
+		return
 	}
 
 	utils.Send(w, http.StatusCreated, nil, "Пароль успешно установлен")
-	w.WriteHeader(http.StatusOK)
 }
 
-func (h *AuthHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
-	var req dto.SetPasswordRequest
+func (h *AuthHandler) SendConfirmUpdatePassword(w http.ResponseWriter, r *http.Request) {
+	var req dto.UpdatePasswordRequestCode
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// TODO: валидация (phone_number и password обязательны)
-	// TODO: проверка, что пользователь существует
-	// TODO: хеширование пароля (bcrypt)
-	// TODO: сохранение password_hash в authRepo
+	err := h.usecase.SendCodeToUpdatePassword(r.Context(), req.PhoneNumber)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidInput):
+			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		default:
+			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+		}
+		return
+	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "password set"})
+	utils.Send(w, http.StatusOK, nil, "Код подтверждения отправлен")
+}
+
+func (h *AuthHandler) ConfirmUpdatePassword(w http.ResponseWriter, r *http.Request) {
+	var req dto.ConfirmUpdatePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err := h.usecase.UpdatePassword(r.Context(), req)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidInput):
+			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		case errors.Is(err, apperrors.ErrNotFound):
+			utils.Send(w, http.StatusNotFound, nil, err.Error())
+		default:
+			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+		}
+		return
+	}
+
+	utils.Send(w, http.StatusOK, nil, "Пароль успешно обновлен")
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -122,24 +142,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: валидация (phone_number и password обязательны)
-	// TODO: найти пользователя по phone_number через authRepo
-	// TODO: сравнить password_hash с введенным паролем (bcrypt.CompareHashAndPassword)
-	// TODO: если пароль верный:
-	//   - сгенерировать access_token (JWT)
-	//   - создать refresh_token и сохранить в БД
-	//   - вернуть LoginResponse
-	// TODO: если пароль неверный - вернуть 401 Unauthorized
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	// json.NewEncoder(w).Encode(resp)
 }
 
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	// TODO: реализовать обновление access_token по refresh_token_key
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-
 }

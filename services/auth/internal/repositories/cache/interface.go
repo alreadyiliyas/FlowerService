@@ -1,4 +1,4 @@
-package repositories
+﻿package repositories
 
 import (
 	"context"
@@ -6,7 +6,8 @@ import (
 )
 
 type CacheRepository interface {
-	SaveConfirmationCode(ctx context.Context, phone, code *string, ttl time.Duration) error
-	DeleteConfirmCode(ctx context.Context, phone *string) error
-	GetConfirmCode(ctx context.Context, phone *string) (string, error)
+	Set(ctx context.Context, key string, value string, ttl time.Duration) error
+	Get(ctx context.Context, key string) (string, error)
+	Del(ctx context.Context, key string) error
+	Exists(ctx context.Context, key string) (bool, error)
 }

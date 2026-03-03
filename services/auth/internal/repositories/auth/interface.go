@@ -1,4 +1,4 @@
-package repositories
+﻿package repositories
 
 import (
 	"context"
@@ -11,5 +11,6 @@ type AuthRepository interface {
 	GetAccountByPhoneNumber(ctx context.Context, in *string) (*entities.Auth, error)
 	VerifyAccount(ctx context.Context, phoneNumber *string) error
 	SetPassword(ctx context.Context, account *entities.Auth) error
+	UpdatePassword(ctx context.Context, account *entities.Auth) error
 	GetPassword(ctx context.Context, in *string) (*string, error)
 }

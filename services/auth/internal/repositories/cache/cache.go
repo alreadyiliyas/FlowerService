@@ -1,4 +1,4 @@
-package repositories
+﻿package repositories
 
 import (
 	"context"
@@ -15,19 +15,22 @@ func NewRedisRepository(client *redis.Client) CacheRepository {
 	return &redisRepo{client: client}
 }
 
-func (r *redisRepo) SaveConfirmationCode(ctx context.Context, phone, code *string, ttl time.Duration) error {
-	return r.client.Set(ctx, *phone, *code, ttl).Err()
+func (r *redisRepo) Set(ctx context.Context, key string, value string, ttl time.Duration) error {
+	return r.client.Set(ctx, key, value, ttl).Err()
 }
 
-func (r *redisRepo) GetConfirmCode(ctx context.Context, phone *string) (string, error) {
-	var code string
-	err := r.client.Get(ctx, *phone).Scan(&code)
+func (r *redisRepo) Get(ctx context.Context, key string) (string, error) {
+	return r.client.Get(ctx, key).Result()
+}
+
+func (r *redisRepo) Del(ctx context.Context, key string) error {
+	return r.client.Del(ctx, key).Err()
+}
+
+func (r *redisRepo) Exists(ctx context.Context, key string) (bool, error) {
+	n, err := r.client.Exists(ctx, key).Result()
 	if err != nil {
-		return "", err
+		return false, err
 	}
-	return code, nil
-}
-
-func (r *redisRepo) DeleteConfirmCode(ctx context.Context, phone *string) error {
-	return r.client.Del(ctx, *phone).Err()
+	return n > 0, nil
 }

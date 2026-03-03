@@ -1,4 +1,4 @@
-package dto
+﻿package dto
 
 import "time"
 
@@ -18,15 +18,20 @@ type RegistrationResponse struct {
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
 }
 
+type UpdatePasswordRequestCode struct {
+	PhoneNumber *string `json:"phone_number,omitempty"`
+}
+
+type ConfirmUpdatePasswordRequest struct {
+	PhoneNumber *string `json:"phone_number,omitempty"`
+	Code        *string `json:"code,omitempty"`
+	OldPassword *string `json:"old_password,omitempty"`
+	NewPassword *string `json:"new_password,omitempty"`
+}
+
 type SetPasswordRequest struct {
 	PhoneNumber *string `json:"phone_number,omitempty"`
 	Password    *string `json:"password,omitempty"`
-}
-
-type UpdatePasswordRequest struct {
-	PhoneNumber *string `json:"phone_number,omitempty"`
-	OldPassword *string `json:"old_password,omitempty"`
-	NewPassword *string `json:"new_password,omitempty"`
 }
 
 type VerifyAccountRequest struct {

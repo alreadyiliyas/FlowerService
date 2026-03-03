@@ -52,7 +52,6 @@ func (r *tarantoolRepository) CreateUser(ctx context.Context, user *entities.Use
 	if err != nil {
 		return nil, err
 	}
-
 	lastName, err := convert.ToString(row[2], "last_name")
 	if err != nil {
 		return nil, err
@@ -81,60 +80,43 @@ func (r *tarantoolRepository) CreateUser(ctx context.Context, user *entities.Use
 }
 
 func (r *tarantoolRepository) GetAccountByPhoneNumber(ctx context.Context, in *string) (*entities.Auth, error) {
-	// TODO: Реализовать получение учетной записи по номеру телефона в Тарантуле
 	return nil, errors.New("not implemented")
 }
 
 func (r *tarantoolRepository) VerifyAccount(ctx context.Context, phoneNumber *string) error {
-	req := tnt.NewCallRequest("verify_account").
-		Args([]interface{}{*phoneNumber}).
-		Context(ctx)
-
-	resp, err := r.conn.Do(req).Get()
-	if err != nil {
-		return convert.MapTarantoolError(err)
-	}
-	if len(resp) == 0 {
-		return fmt.Errorf("%w: verify_account returned empty response", apperrors.ErrDB)
-	}
-
-	ok, isBool := resp[0].(bool)
-	if !isBool {
-		return fmt.Errorf("%w: invalid verify_account response type %T", apperrors.ErrDB, resp[0])
-	}
-	if !ok {
-		return fmt.Errorf("%w: user didn't activate", apperrors.ErrDB)
-	}
-
-	return nil
+	return r.callBoolProc(ctx, "verify_account", []interface{}{*phoneNumber})
 }
 
 func (r *tarantoolRepository) SetPassword(ctx context.Context, account *entities.Auth) error {
-	req := tnt.NewCallRequest("set_password").
-		Args([]interface{}{*account.PhoneNumber, *account.PasswordHash}).
-		Context(ctx)
+	return r.callBoolProc(ctx, "set_password", []interface{}{*account.PhoneNumber, *account.PasswordHash})
+}
+
+func (r *tarantoolRepository) UpdatePassword(ctx context.Context, account *entities.Auth) error {
+	return r.callBoolProc(ctx, "update_password", []interface{}{*account.PhoneNumber, *account.PasswordHash})
+}
+
+func (r *tarantoolRepository) GetPassword(ctx context.Context, in *string) (*string, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (r *tarantoolRepository) callBoolProc(ctx context.Context, proc string, args []interface{}) error {
+	req := tnt.NewCallRequest(proc).Args(args).Context(ctx)
 
 	resp, err := r.conn.Do(req).Get()
 	if err != nil {
 		return convert.MapTarantoolError(err)
 	}
-
 	if len(resp) == 0 {
-		return fmt.Errorf("%w: set_password returned empty response", apperrors.ErrDB)
+		return fmt.Errorf("%w: %s returned empty response", apperrors.ErrDB, proc)
 	}
 
 	ok, isBool := resp[0].(bool)
 	if !isBool {
-		return fmt.Errorf("%w: invalid set_password response type %T", apperrors.ErrDB, resp[0])
+		return fmt.Errorf("%w: invalid %s response type %T", apperrors.ErrDB, proc, resp[0])
 	}
 	if !ok {
-		return fmt.Errorf("%w: password of user didn't set", apperrors.ErrDB)
+		return fmt.Errorf("%w: %s returned false", apperrors.ErrDB, proc)
 	}
 
 	return nil
-}
-
-func (r *tarantoolRepository) GetPassword(ctx context.Context, in *string) (*string, error) {
-	// TODO: Реализовать получение пароля из Тарантула
-	return nil, errors.New("not implemented")
 }
