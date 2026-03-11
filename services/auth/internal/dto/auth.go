@@ -49,6 +49,16 @@ type LoginResponse struct {
 	RefreshTokenKey string `json:"refresh_token_key"`
 }
 
+type RefreshCache struct {
+	UserID          uint64 `json:"user_id"`
+	Role            string `json:"role"`
+	PhoneNumber     string `json:"phone_number"`
+	FirstName       string `json:"first_name"`
+	LastName        string `json:"last_name"`
+	RefreshToken    string `json:"refresh_token"`
+	RefreshTokenKey string `json:"refresh_token_key"`
+}
+
 type RefreshTokenRequest struct {
 	RefreshTokenKey *string `json:"refresh_token_key"`
 }

@@ -24,14 +24,19 @@ type RedisConfig struct {
 	ConfirmationCodeTTL int
 }
 
-// общий конфиг сервиса.
+type JWTConfig struct {
+	Secret           string
+	AccessTTLMinutes int
+	RefreshTTLDays   int
+}
+
 type Config struct {
 	HTTP      HTTPConfig
 	Tarantool TarantoolConfig
 	Redis     RedisConfig
+	JWT       JWTConfig
 }
 
-// Load загружает конфиг из переменных окружения с дефолтами.
 func Load() (*Config, error) {
 	httpAddr, err := getEnv("AUTH_HTTP_ADDRESS")
 	if err != nil {
@@ -66,6 +71,28 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	jwtSecret, err := getEnv("JWT_SECRET")
+	if err != nil {
+		return nil, err
+	}
+	jwtAccessTTL, err := getEnv("JWT_ACCESS_TTL_MIN")
+	if err != nil {
+		return nil, err
+	}
+	jwtAccessTTLInt, err := utils.ToInt(jwtAccessTTL, "JWT_ACCESS_TTL_MIN")
+	if err != nil {
+		return nil, err
+	}
+	jwtRefreshTTL, err := getEnv("JWT_REFRESH_TTL_DAYS")
+	if err != nil {
+		return nil, err
+	}
+	jwtRefreshTTLInt, err := utils.ToInt(jwtRefreshTTL, "JWT_REFRESH_TTL_DAYS")
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		HTTP: HTTPConfig{
 			Address: httpAddr,
@@ -80,6 +107,11 @@ func Load() (*Config, error) {
 			Password:            redisPassword,
 			DB:                  redisDBInt,
 			ConfirmationCodeTTL: 0,
+		},
+		JWT: JWTConfig{
+			Secret:           jwtSecret,
+			AccessTTLMinutes: jwtAccessTTLInt,
+			RefreshTTLDays:   jwtRefreshTTLInt,
 		},
 	}, nil
 }

@@ -141,12 +141,45 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+	resp, err := h.usecase.Login(r.Context(), req)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidInput):
+			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		case errors.Is(err, apperrors.ErrUnauthorized):
+			utils.Send(w, http.StatusUnauthorized, nil, err.Error())
+		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrAccountNotFound), errors.Is(err, apperrors.ErrUserNotFound):
+			utils.Send(w, http.StatusNotFound, nil, err.Error())
+		default:
+			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+		}
+		return
+	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	utils.Send(w, http.StatusOK, resp, "Успешный вход")
 }
 
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	var req dto.RefreshTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.usecase.RefreshToken(r.Context(), req)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidInput):
+			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		case errors.Is(err, apperrors.ErrUnauthorized):
+			utils.Send(w, http.StatusUnauthorized, nil, err.Error())
+		default:
+			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+		}
+		return
+	}
+
+	utils.Send(w, http.StatusOK, resp, "Access token обновлен")
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {

@@ -80,7 +80,58 @@ func (r *tarantoolRepository) CreateUser(ctx context.Context, user *entities.Use
 }
 
 func (r *tarantoolRepository) GetAccountByPhoneNumber(ctx context.Context, in *string) (*entities.Auth, error) {
-	return nil, errors.New("not implemented")
+	req := tnt.NewCallRequest("get_account_by_phone_number").
+		Args([]interface{}{
+			*in,
+		}).
+		Context(ctx)
+
+	resp, err := r.conn.Do(req).Get()
+	if err != nil {
+		return nil, convert.MapTarantoolError(err)
+	}
+	if len(resp) == 0 {
+		return nil, errors.New("empty response from get account by phone number")
+	}
+
+	row, ok := resp[0].([]interface{})
+	if !ok || len(row) < 5 {
+		return nil, errors.New("invalid response payload")
+	}
+
+	id, err := convert.ToUint64(row[0], "id")
+	if err != nil {
+		return nil, err
+	}
+	firstName, err := convert.ToString(row[1], "first_name")
+	if err != nil {
+		return nil, err
+	}
+	lastName, err := convert.ToString(row[2], "last_name")
+	if err != nil {
+		return nil, err
+	}
+	roleName, err := convert.ToString(row[3], "role")
+	if err != nil {
+		return nil, err
+	}
+	passwordHash, err := convert.ToString(row[4], "password_hash")
+	if err != nil {
+		return nil, err
+	}
+	user := entities.User{
+		Id:        &id,
+		FirstName: &firstName,
+		LastName:  &lastName,
+		Role:      &roleName,
+	}
+
+	return &entities.Auth{
+		UserId:       &id,
+		PhoneNumber:  in,
+		PasswordHash: &passwordHash,
+		User:         user,
+	}, nil
 }
 
 func (r *tarantoolRepository) VerifyAccount(ctx context.Context, phoneNumber *string) error {

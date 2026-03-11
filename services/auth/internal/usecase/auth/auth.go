@@ -6,6 +6,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/ilyas/flower/services/auth/internal/apperrors"
 	"github.com/ilyas/flower/services/auth/internal/config"
 	"github.com/ilyas/flower/services/auth/internal/dto"
@@ -230,4 +232,138 @@ func (ac *authUsecase) UpdatePassword(ctx context.Context, dtoReq dto.ConfirmUpd
 	}
 
 	return nil
+}
+
+func (ac *authUsecase) Login(ctx context.Context, dtoReq dto.LoginRequest) (dtoRes *dto.LoginResponse, err error) {
+	if dtoReq.PhoneNumber == nil || *dtoReq.PhoneNumber == "" {
+		log.Printf("| usecase | UpdatePassword | задан пустой номер телефона")
+		return nil, fmt.Errorf("%w: задан пустой номер телефона", apperrors.ErrInvalidInput)
+	}
+	if !utils.IsValidPhoneNumber(*dtoReq.PhoneNumber) {
+		return nil, fmt.Errorf("%w: проверьте номер телефона", apperrors.ErrInvalidInput)
+	}
+
+	cacheKeyByPhone := utils.BuildRefreshTokenKeyByPhone(*dtoReq.PhoneNumber)
+	if raw, err := ac.cacheRepo.Get(ctx, cacheKeyByPhone); err == nil {
+		var cachePayload dto.RefreshCache
+		if err := utils.UnmarshalFromString(raw, &cachePayload); err != nil {
+			return nil, fmt.Errorf("%w: failed to decode refresh cache", apperrors.ErrDB)
+		}
+		accessToken, err := utils.GenerateAccessToken(
+			cachePayload.UserID,
+			cachePayload.Role,
+			cachePayload.PhoneNumber,
+			ac.cfg.JWT.Secret,
+			time.Duration(ac.cfg.JWT.AccessTTLMinutes)*time.Minute,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("%w: failed to generate access token", apperrors.ErrDB)
+		}
+
+		return &dto.LoginResponse{
+			AccessToken:     accessToken,
+			RefreshTokenKey: cachePayload.RefreshTokenKey,
+		}, nil
+	} else if err != redis.Nil {
+		return nil, fmt.Errorf("%w: failed to read refresh token", apperrors.ErrDB)
+	}
+
+	if dtoReq.Password == nil || *dtoReq.Password == "" {
+		log.Printf("| usecase | UpdatePassword | задан пустой пароль")
+		return nil, fmt.Errorf("%w: задан пустой пароль", apperrors.ErrInvalidInput)
+	}
+
+	account, err := ac.trRepo.GetAccountByPhoneNumber(ctx, dtoReq.PhoneNumber)
+	if err != nil {
+		log.Printf("| usecase | Login | get account error: %v", err)
+		return nil, err
+	}
+	if account.PasswordHash == nil || !utils.CheckPasswordHash(*dtoReq.Password, *account.PasswordHash) {
+		return nil, apperrors.ErrUnauthorized
+	}
+
+	accessToken, err := utils.GenerateAccessToken(
+		*account.UserId,
+		*account.User.Role,
+		*account.PhoneNumber,
+		ac.cfg.JWT.Secret,
+		time.Duration(ac.cfg.JWT.AccessTTLMinutes)*time.Minute,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to generate access token", apperrors.ErrDB)
+	}
+
+	refreshKey, err := utils.RandomToken(16)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to generate refresh token key", apperrors.ErrDB)
+	}
+	refreshToken, err := utils.RandomToken(32)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to generate refresh token", apperrors.ErrDB)
+	}
+
+	cachePayload := dto.RefreshCache{
+		UserID:          *account.UserId,
+		Role:            *account.User.Role,
+		PhoneNumber:     *account.PhoneNumber,
+		FirstName:       *account.User.FirstName,
+		LastName:        *account.User.LastName,
+		RefreshToken:    refreshToken,
+		RefreshTokenKey: refreshKey,
+	}
+
+	raw, err := utils.MarshalToString(cachePayload)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to encode refresh cache", apperrors.ErrDB)
+	}
+
+	cacheKey := utils.BuildRefreshTokenKey(refreshKey)
+	ttl := time.Duration(ac.cfg.JWT.RefreshTTLDays) * 24 * time.Hour
+	if err := ac.cacheRepo.Set(ctx, cacheKey, raw, ttl); err != nil {
+		return nil, fmt.Errorf("%w: failed to store refresh token", apperrors.ErrDB)
+	}
+	if err := ac.cacheRepo.Set(ctx, cacheKeyByPhone, raw, ttl); err != nil {
+		return nil, fmt.Errorf("%w: failed to store refresh token", apperrors.ErrDB)
+	}
+
+	return &dto.LoginResponse{
+		AccessToken:     accessToken,
+		RefreshTokenKey: refreshKey,
+	}, nil
+}
+
+func (ac *authUsecase) RefreshToken(ctx context.Context, dtoReq dto.RefreshTokenRequest) (dtoRes *dto.RefreshTokenResponse, err error) {
+	if dtoReq.RefreshTokenKey == nil || *dtoReq.RefreshTokenKey == "" {
+		return nil, fmt.Errorf("%w: refresh token key is empty", apperrors.ErrInvalidInput)
+	}
+
+	cacheKey := utils.BuildRefreshTokenKey(*dtoReq.RefreshTokenKey)
+	raw, err := ac.cacheRepo.Get(ctx, cacheKey)
+	if err != nil {
+		if err == redis.Nil {
+			return nil, apperrors.ErrUnauthorized
+		}
+		return nil, fmt.Errorf("%w: failed to read refresh token", apperrors.ErrDB)
+	}
+
+	var cachePayload dto.RefreshCache
+	if err := utils.UnmarshalFromString(raw, &cachePayload); err != nil {
+		return nil, fmt.Errorf("%w: failed to decode refresh cache", apperrors.ErrDB)
+	}
+
+	accessToken, err := utils.GenerateAccessToken(
+		cachePayload.UserID,
+		cachePayload.Role,
+		cachePayload.PhoneNumber,
+		ac.cfg.JWT.Secret,
+		time.Duration(ac.cfg.JWT.AccessTTLMinutes)*time.Minute,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to generate access token", apperrors.ErrDB)
+	}
+
+	return &dto.RefreshTokenResponse{
+		AccessToken:     accessToken,
+		RefreshTokenKey: *dtoReq.RefreshTokenKey,
+	}, nil
 }

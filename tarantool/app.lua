@@ -11,6 +11,7 @@ _G.create_user = auth.create_user
 _G.verify_account = auth.verify_account
 _G.set_password = auth.set_password
 _G.update_password = auth.update_password
+_G.get_account_by_phone_number = auth.get_account_by_phone_number
 
 log.info("Tarantool app loaded")
 

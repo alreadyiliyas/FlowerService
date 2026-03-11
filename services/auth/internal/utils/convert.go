@@ -1,6 +1,7 @@
 ﻿package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -82,4 +83,16 @@ func ToInt(v interface{}, field string) (int, error) {
 	default:
 		return 0, fmt.Errorf("invalid %s type: got %T, want unsigned integer", field, v)
 	}
+}
+
+func MarshalToString(v interface{}) (string, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func UnmarshalFromString(s string, v interface{}) error {
+	return json.Unmarshal([]byte(s), v)
 }
