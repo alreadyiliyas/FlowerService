@@ -183,4 +183,23 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	var req dto.LogoutRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.usecase.Logout(r.Context(), req); err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidInput):
+			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		case errors.Is(err, apperrors.ErrNotFound):
+			utils.Send(w, http.StatusNotFound, nil, err.Error())
+		default:
+			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+		}
+		return
+	}
+
+	utils.Send(w, http.StatusOK, nil, "Сессия удалена")
 }

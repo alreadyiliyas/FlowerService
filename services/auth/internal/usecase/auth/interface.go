@@ -14,5 +14,5 @@ type Usecase interface {
 	SendCodeToUpdatePassword(ctx context.Context, phoneNumber *string) error
 	UpdatePassword(ctx context.Context, dtoReq dto.ConfirmUpdatePasswordRequest) error
 	RefreshToken(ctx context.Context, dtoReq dto.RefreshTokenRequest) (dtoRes *dto.RefreshTokenResponse, err error)
-	// Logout(ctx context.Context, dtoReq dto.LogoutRequest) error
+	Logout(ctx context.Context, dtoReq dto.LogoutRequest) error
 }

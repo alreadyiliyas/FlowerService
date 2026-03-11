@@ -367,3 +367,34 @@ func (ac *authUsecase) RefreshToken(ctx context.Context, dtoReq dto.RefreshToken
 		RefreshTokenKey: *dtoReq.RefreshTokenKey,
 	}, nil
 }
+
+func (ac *authUsecase) Logout(ctx context.Context, dtoReq dto.LogoutRequest) error {
+	if dtoReq.PhoneNumber == nil || *dtoReq.PhoneNumber == "" {
+		return fmt.Errorf("%w: задан пустой номер телефона", apperrors.ErrInvalidInput)
+	}
+
+	cacheKeyByPhone := utils.BuildRefreshTokenKeyByPhone(*dtoReq.PhoneNumber)
+	raw, err := ac.cacheRepo.Get(ctx, cacheKeyByPhone)
+	if err != nil {
+		if err == redis.Nil {
+			return apperrors.ErrNotFound
+		}
+		return fmt.Errorf("%w: failed to read refresh token", apperrors.ErrDB)
+	}
+
+	var cachePayload dto.RefreshCache
+	if err := utils.UnmarshalFromString(raw, &cachePayload); err != nil {
+		return fmt.Errorf("%w: failed to decode refresh cache", apperrors.ErrDB)
+	}
+
+	if cachePayload.RefreshTokenKey != "" {
+		if err := ac.cacheRepo.Del(ctx, utils.BuildRefreshTokenKey(cachePayload.RefreshTokenKey)); err != nil {
+			return fmt.Errorf("%w: failed to delete refresh token", apperrors.ErrDB)
+		}
+	}
+	if err := ac.cacheRepo.Del(ctx, cacheKeyByPhone); err != nil {
+		return fmt.Errorf("%w: failed to delete refresh token by phone", apperrors.ErrDB)
+	}
+
+	return nil
+}
