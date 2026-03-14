@@ -39,6 +39,32 @@
       retries: 10
       start_period: 5s
 
+  auth:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    image: auth
+    container_name: auth
+    restart: unless-stopped
+    depends_on:
+      - tarantool
+      - redis
+    ports:
+      - "8081:8081"
+    environment:
+      AUTH_HTTP_ADDRESS: ":8081"
+      TARANTOOL_ADDR: "tarantool:3301"
+      TARANTOOL_USER: ${TARANTOOL_USER}
+      TARANTOOL_PASSWORD: ${TARANTOOL_PASSWORD}
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TTL_MIN: ${JWT_ACCESS_TTL_MIN}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS}
+    volumes:
+      - ./public:/app/public
+
 volumes:
   tarantool_data:
 

@@ -15,7 +15,7 @@ WORKDIR /app
 
 COPY --from=builder /bin/auth-service /app/auth-service
 
-EXPOSE 8080
+EXPOSE 8081
 
 ENTRYPOINT ["/app/auth-service"]
 
