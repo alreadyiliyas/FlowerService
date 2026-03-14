@@ -26,3 +26,6 @@ data/
 tarantool/var/
 tarantool/*.xlog
 tarantool/*.snap
+
+#public
+public/
