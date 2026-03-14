@@ -13,10 +13,10 @@ import (
 
 // AuthHandler обрабатывает HTTP-запросы для аутентификации.
 type AuthHandler struct {
-	usecase auth.Usecase
+	usecase auth.UsecaseAuth
 }
 
-func NewAuthHandler(uc auth.Usecase) *AuthHandler {
+func NewAuthHandler(uc auth.UsecaseAuth) *AuthHandler {
 	return &AuthHandler{usecase: uc}
 }
 
@@ -202,4 +202,26 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.Send(w, http.StatusOK, nil, "Сессия удалена")
+}
+
+func (h *AuthHandler) LogoutAll(w http.ResponseWriter, r *http.Request) {
+	var req dto.LogoutAllRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.usecase.LogoutAll(r.Context(), req); err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidInput):
+			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		case errors.Is(err, apperrors.ErrNotFound):
+			utils.Send(w, http.StatusNotFound, nil, err.Error())
+		default:
+			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+		}
+		return
+	}
+
+	utils.Send(w, http.StatusOK, nil, "Все сессии удалены")
 }

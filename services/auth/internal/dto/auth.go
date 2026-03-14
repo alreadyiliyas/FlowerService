@@ -46,7 +46,7 @@ type LoginRequest struct {
 
 type LoginResponse struct {
 	AccessToken     string `json:"access_token"`
-	RefreshTokenKey string `json:"refresh_token_key"`
+	SessionID       string `json:"session_id"`
 }
 
 type RefreshCache struct {
@@ -56,18 +56,22 @@ type RefreshCache struct {
 	FirstName       string `json:"first_name"`
 	LastName        string `json:"last_name"`
 	RefreshToken    string `json:"refresh_token"`
-	RefreshTokenKey string `json:"refresh_token_key"`
+	SessionID       string `json:"session_id"`
 }
 
 type RefreshTokenRequest struct {
-	RefreshTokenKey *string `json:"refresh_token_key"`
+	SessionID *string `json:"session_id"`
 }
 
 type RefreshTokenResponse struct {
 	AccessToken     string `json:"access_token"`
-	RefreshTokenKey string `json:"refresh_token_key"`
+	SessionID       string `json:"session_id"`
 }
 
 type LogoutRequest struct {
+	SessionID *string `json:"session_id,omitempty"`
+}
+
+type LogoutAllRequest struct {
 	PhoneNumber *string `json:"phone_number,omitempty"`
 }

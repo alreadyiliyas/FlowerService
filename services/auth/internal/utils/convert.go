@@ -85,6 +85,14 @@ func ToInt(v interface{}, field string) (int, error) {
 	}
 }
 
+func ToBool(v interface{}, field string) (bool, error) {
+	b, ok := v.(bool)
+	if !ok {
+		return false, fmt.Errorf("invalid %s type: got %T, want string", field, v)
+	}
+	return b, nil
+}
+
 func MarshalToString(v interface{}) (string, error) {
 	b, err := json.Marshal(v)
 	if err != nil {

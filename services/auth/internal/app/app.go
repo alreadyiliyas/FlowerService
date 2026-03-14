@@ -12,8 +12,10 @@ import (
 	redisclient "github.com/ilyas/flower/services/auth/internal/redis"
 	authRepo "github.com/ilyas/flower/services/auth/internal/repositories/auth"
 	cacheRepo "github.com/ilyas/flower/services/auth/internal/repositories/cache"
+	userRepo "github.com/ilyas/flower/services/auth/internal/repositories/user"
 	tntclient "github.com/ilyas/flower/services/auth/internal/tarantool"
 	authusecase "github.com/ilyas/flower/services/auth/internal/usecase/auth"
+	userusecase "github.com/ilyas/flower/services/auth/internal/usecase/user"
 )
 
 func Run() error {
@@ -47,12 +49,15 @@ func Run() error {
 	defer redisConn.Close()
 
 	authRepo := authRepo.NewTarantoolRepository(tntConn)
+	userRepo := userRepo.NewTarantoolRepository(tntConn)
 	cacheRepo := cacheRepo.NewRedisRepository(redisConn)
 	authUC := authusecase.New(cfg, authRepo, cacheRepo)
+	userUC := userusecase.New(cfg, userRepo, cacheRepo)
 
 	httpSrv := httpserver.New(httpserver.Config{
-		Address: cfg.HTTP.Address,
-	}, authUC)
+		Address:   cfg.HTTP.Address,
+		JWTSecret: cfg.JWT.Secret,
+	}, authUC, userUC)
 
 	fmt.Fprintf(os.Stdout, "auth service listening on %s\n", cfg.HTTP.Address)
 

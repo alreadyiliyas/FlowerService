@@ -8,10 +8,14 @@ func BuildPasswordUpdateKey(phone string) string {
 	return "pwd_update:" + phone
 }
 
-func BuildRefreshTokenKey(refreshKey string) string {
-	return "refresh:" + refreshKey
+func BuildSessionKey(sessionID string) string {
+	return "session:" + sessionID
 }
 
-func BuildRefreshTokenKeyByPhone(phone string) string {
-	return "refresh_phone:" + phone
+func BuildSessionKeyByPhone(phone string) string {
+	return "session_phone:" + phone
+}
+
+func BuildUserInfoKey(phone string) string {
+	return "user_info:" + phone
 }

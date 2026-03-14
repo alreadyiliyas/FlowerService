@@ -1,1 +1,90 @@
 package repositories
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/ilyas/flower/services/auth/internal/entities"
+	convert "github.com/ilyas/flower/services/auth/internal/utils"
+	tnt "github.com/tarantool/go-tarantool/v2"
+)
+
+type tarantoolRepository struct {
+	conn *tnt.Connection
+}
+
+func NewTarantoolRepository(conn *tnt.Connection) UserRepository {
+	return &tarantoolRepository{conn: conn}
+}
+
+func (r *tarantoolRepository) Get(ctx context.Context, account *entities.Auth) (*entities.User, error) {
+	req := tnt.NewCallRequest("get_user_info_by_phone_number").
+		Args([]interface{}{
+			*account.PhoneNumber,
+		}).
+		Context(ctx)
+
+	resp, err := r.conn.Do(req).Get()
+	if err != nil {
+		return nil, convert.MapTarantoolError(err)
+	}
+	if len(resp) == 0 {
+		return nil, errors.New("empty response from get_user_info_by_phone_number")
+	}
+
+	row, ok := resp[0].([]interface{})
+	if !ok || len(row) < 7 {
+		return nil, errors.New("invalid response payload")
+	}
+
+	id, err := convert.ToUint64(row[0], "id")
+	if err != nil {
+		return nil, err
+	}
+	firstName, err := convert.ToString(row[1], "first_name")
+	if err != nil {
+		return nil, err
+	}
+	lastName, err := convert.ToString(row[2], "last_name")
+	if err != nil {
+		return nil, err
+	}
+	roleName, err := convert.ToString(row[3], "role")
+	if err != nil {
+		return nil, err
+	}
+	isActive, err := convert.ToBool(row[4], "is_active")
+	if err != nil {
+		return nil, err
+	}
+	createdUnix, err := convert.ToUint64(row[5], "created_at")
+	if err != nil {
+		return nil, err
+	}
+	createdAt := time.Unix(int64(createdUnix), 0)
+
+	updatedUnix, err := convert.ToUint64(row[6], "updated_at")
+	if err != nil {
+		return nil, err
+	}
+	updatedAt := time.Unix(int64(updatedUnix), 0)
+
+	return &entities.User{
+		Id:        &id,
+		FirstName: &firstName,
+		LastName:  &lastName,
+		Role:      &roleName,
+		CreatedAt: &createdAt,
+		UpdatedAt: &updatedAt,
+		IsActive:  isActive,
+	}, nil
+}
+
+func (r *tarantoolRepository) Update(ctx context.Context, account *entities.Auth) (*entities.User, error) {
+	return nil, nil
+}
+
+func (r *tarantoolRepository) Delete(ctx context.Context, account *entities.Auth) error {
+	return nil
+}
