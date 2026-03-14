@@ -58,23 +58,54 @@ function U.update_user_info_by_phone_number(phone_number, new_phone_number, firs
 
         local now = os.time()
         box.space.users:update(user.id, {
-            {"=", 2, first_name},
-            {"=", 3, last_name},
-            {"=", 8, now},
-            {"=", 9, avatar_url},
-            {"=", 5, user.version + 1},
+            {"=", "first_name", first_name},
+            {"=", "last_name", last_name},
+            {"=", "updated_at", now},
+            {"=", "avatar_url", avatar_url},
+            {"=", "version", user.version + 1},
         })
 
         if new_phone_number ~= nil and new_phone_number ~= phone_number then
             box.space.auths:update(account.id, {
-                {"=", 3, new_phone_number},
-                {"=", 8, now},
+                {"=", "phone_number", new_phone_number},
+                {"=", "updated_at", now},
             })
         end
 
         local actual_phone = new_phone_number or phone_number
 
         return {user.id, first_name, last_name, role.name, user.is_active, user.created_at, now, avatar_url, actual_phone}
+    end)
+end
+
+function U.delete_user(phone_number)
+    return box.atomic(function()
+        local account = box.space.auths.index.phone_number:get{phone_number}
+        if account == nil then
+            error(E.ACCOUNT_NOT_FOUND)
+        end
+
+        local user = box.space.users:get{account.user_id}
+        if user == nil then
+            error(E.USER_NOT_FOUND)
+        end
+        if user.is_active == false then
+            error(E.ALREADY_NOT_ACTIVE)
+        end
+
+        local role = box.space.roles:get{user.role_id}
+        if role == nil then
+            error(E.ROLE_NOT_FOUND)
+        end
+
+        local now = os.time()
+        box.space.users:update(user.id, {
+            {"=", "is_active", false},
+            {"=", "version", user.version + 1},
+            {"=", "deleted_at", now},
+        })
+
+        return true
     end)
 end
 

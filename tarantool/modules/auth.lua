@@ -46,9 +46,9 @@ function M.verify_account(phone_number)
 
         local now = os.time()
         box.space.users:update(user.id, {
-            {"=", 6, true},
-            {"=", 8, now},
-            {"=", 5, user.version + 1},
+            {"=", "is_active", true},
+            {"=", "updated_at", now},
+            {"=", "version", user.version + 1},
         })
 
         return true
@@ -77,8 +77,8 @@ function M.set_password(phone_number, password_hash)
 
         local now = os.time()
         box.space.auths:update(account.id, {
-            {"=", 7, password_hash},
-            {"=", 8, now},
+            {"=", "password_hash", password_hash},
+            {"=", "updated_at", now},
         })
 
         return true
@@ -103,8 +103,8 @@ function M.update_password(phone_number, password_hash)
 
         local now = os.time()
         box.space.auths:update(account.id, {
-            {"=", 7, password_hash},
-            {"=", 8, now},
+            {"=", "password_hash", password_hash},
+            {"=", "updated_at", now},
         })
 
         return true

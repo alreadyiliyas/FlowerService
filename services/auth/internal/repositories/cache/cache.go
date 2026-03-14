@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/ilyas/flower/services/auth/internal/utils"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -57,4 +58,27 @@ func (r *redisRepo) SRem(ctx context.Context, key string, members ...string) err
 		args = append(args, m)
 	}
 	return r.client.SRem(ctx, key, args...).Err()
+}
+
+func (r *redisRepo) DeleteSessionsByPhone(ctx context.Context, phone string) error {
+	sessionSetKey := utils.BuildSessionKeyByPhone(phone)
+	userInfoKey := utils.BuildUserInfoKey(phone)
+
+	sessionIDs, err := r.client.SMembers(ctx, sessionSetKey).Result()
+	if err != nil {
+		return err
+	}
+
+	pipe := r.client.Pipeline()
+	for _, sid := range sessionIDs {
+		if sid == "" {
+			continue
+		}
+		pipe.Del(ctx, "session:"+sid)
+	}
+	pipe.Del(ctx, sessionSetKey)
+	pipe.Del(ctx, userInfoKey)
+
+	_, err = pipe.Exec(ctx)
+	return err
 }

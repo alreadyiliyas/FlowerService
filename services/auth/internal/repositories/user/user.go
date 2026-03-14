@@ -3,8 +3,10 @@ package repositories
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/ilyas/flower/services/auth/internal/apperrors"
 	"github.com/ilyas/flower/services/auth/internal/entities"
 	"github.com/ilyas/flower/services/auth/internal/utils"
 	convert "github.com/ilyas/flower/services/auth/internal/utils"
@@ -172,5 +174,27 @@ func (r *tarantoolRepository) Update(ctx context.Context, account *entities.Auth
 }
 
 func (r *tarantoolRepository) Delete(ctx context.Context, account *entities.Auth) error {
+	return r.callBoolProc(ctx, "delete_user", []interface{}{*account.PhoneNumber})
+}
+
+func (r *tarantoolRepository) callBoolProc(ctx context.Context, proc string, args []interface{}) error {
+	req := tnt.NewCallRequest(proc).Args(args).Context(ctx)
+
+	resp, err := r.conn.Do(req).Get()
+	if err != nil {
+		return convert.MapTarantoolError(err)
+	}
+	if len(resp) == 0 {
+		return fmt.Errorf("%w: %s returned empty response", apperrors.ErrDB, proc)
+	}
+
+	ok, isBool := resp[0].(bool)
+	if !isBool {
+		return fmt.Errorf("%w: invalid %s response type %T", apperrors.ErrDB, proc, resp[0])
+	}
+	if !ok {
+		return fmt.Errorf("%w: %s returned false", apperrors.ErrDB, proc)
+	}
+
 	return nil
 }

@@ -104,7 +104,8 @@ func (uc *userUsecase) UpdateUserInfo(ctx context.Context, dtoReq dto.UpdateUser
 	// Load current values to avoid overwriting with nil.
 	current, err := uc.trRepo.Get(ctx, &entities.Auth{PhoneNumber: dtoReq.PhoneNumber})
 	if err != nil {
-		return nil, err
+		log.Printf("| usecase | UpdateUserInfo | failed to get from DB: %v", err)
+		return nil, apperrors.ErrDB
 	}
 
 	firstName := current.FirstName
@@ -137,7 +138,8 @@ func (uc *userUsecase) UpdateUserInfo(ctx context.Context, dtoReq dto.UpdateUser
 
 	userEntity, err := uc.trRepo.Update(ctx, account)
 	if err != nil {
-		return nil, err
+		log.Printf("| usecase | UpdateUserInfo | failed to update in DB: %v", err)
+		return nil, apperrors.ErrDB
 	}
 
 	isActive := strconv.FormatBool(userEntity.IsActive)
@@ -169,12 +171,14 @@ func (uc *userUsecase) UpdateUserInfo(ctx context.Context, dtoReq dto.UpdateUser
 
 	raw, err := utils.MarshalToString(cachePayload)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to encode cache", apperrors.ErrDB)
+		log.Printf("| usecase | UpdateUserInfo | failed to encode cache: %v", err)
+		return nil, apperrors.ErrDB
 	}
 
 	ttl := time.Duration(uc.cfg.JWT.AccessTTLMinutes) * time.Minute
 	if err := uc.cacheRepo.Set(ctx, newCacheKey, raw, ttl); err != nil {
-		return nil, fmt.Errorf("%w: failed to write cache", apperrors.ErrDB)
+		log.Printf("| usecase | UpdateUserInfo | failed to write cache: %v", err)
+		return nil, apperrors.ErrDB
 	}
 	if oldCacheKey != newCacheKey {
 		_ = uc.cacheRepo.Del(ctx, oldCacheKey)
@@ -221,6 +225,25 @@ func (uc *userUsecase) UpdateUserInfo(ctx context.Context, dtoReq dto.UpdateUser
 	return &res, nil
 }
 
-func (uc *userUsecase) DeleteUserInfo(ctx context.Context, dtoReq dto.DeleteUserRequest) (dtoRes *dto.DeleteUserResponse, err error) {
-	return nil, nil
+func (uc *userUsecase) DeleteUserInfo(ctx context.Context, dtoReq dto.DeleteUserRequest) error {
+	if dtoReq.PhoneNumber == nil || *dtoReq.PhoneNumber == "" {
+		return fmt.Errorf("%w: phone number is empty", apperrors.ErrInvalidInput)
+	}
+	if !utils.IsValidPhoneNumber(*dtoReq.PhoneNumber) {
+		return fmt.Errorf("%w: invalid phone number", apperrors.ErrInvalidInput)
+	}
+
+	err := uc.trRepo.Delete(ctx, &entities.Auth{PhoneNumber: dtoReq.PhoneNumber})
+	if err != nil {
+		log.Printf("| usecase | DeleteUserInfo | failed to delete: %v", err)
+		return apperrors.ErrDB
+	}
+
+	err = uc.cacheRepo.DeleteSessionsByPhone(ctx, *dtoReq.PhoneNumber)
+	if err != nil {
+		log.Printf("| usecase | DeleteUserInfo | failed to delete in cache: %v", err)
+		return apperrors.ErrDB
+	}
+
+	return nil
 }

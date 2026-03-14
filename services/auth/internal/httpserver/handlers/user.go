@@ -75,7 +75,7 @@ func (h *UserHandler) UpdateUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.Send(w, http.StatusOK, resp, "Обновлено")
+	utils.Send(w, http.StatusOK, resp, "пользователь обновлен")
 }
 
 func (h *UserHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
@@ -153,4 +153,34 @@ func (h *UserHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.Send(w, http.StatusOK, resp, "Аватар обновлен")
+}
+
+func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	phone, ok := middleware.PhoneFromContext(r.Context())
+	if !ok || phone == "" {
+		utils.Send(w, http.StatusUnauthorized, nil, apperrors.ErrUnauthorized.Error())
+		return
+	}
+
+	var req dto.DeleteUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	req.PhoneNumber = &phone
+
+	err := h.usecase.DeleteUserInfo(r.Context(), req)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidInput):
+			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrAccountNotFound), errors.Is(err, apperrors.ErrUserNotFound):
+			utils.Send(w, http.StatusNotFound, nil, err.Error())
+		default:
+			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+		}
+		return
+	}
+
+	utils.Send(w, http.StatusOK, nil, "пользователь удален")
 }

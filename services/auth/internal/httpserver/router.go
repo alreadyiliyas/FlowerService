@@ -46,7 +46,7 @@ func newRouter(authUC authusecase.UsecaseAuth, userUC userusecase.UsecaseUser, j
 	userRouter.HandleFunc("/me", userHandler.GetUserInfo).Methods("GET")
 	userRouter.HandleFunc("/me/update", userHandler.UpdateUserInfo).Methods("PATCH")
 	userRouter.HandleFunc("/me/avatar", userHandler.UploadAvatar).Methods("POST")
-
+	userRouter.HandleFunc("/me/delete", userHandler.UploadAvatar).Methods("DELETE")
 	router.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("public"))))
 
 	return router
