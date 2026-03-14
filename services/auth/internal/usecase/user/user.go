@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -43,11 +44,13 @@ func (uc *userUsecase) GetUserInfo(ctx context.Context, dtoReq dto.GetUserInfoRe
 	if raw, err := uc.cacheRepo.Get(ctx, cacheKey); err == nil {
 		var cached dto.GetUserInfoResponse
 		if err := utils.UnmarshalFromString(raw, &cached); err != nil {
-			return nil, fmt.Errorf("%w: failed to decode cache", apperrors.ErrDB)
+			log.Printf("| usecase | GetUserInfo | ошибка при decode cache")
+			return nil, apperrors.ErrDB
 		}
 		return &cached, nil
 	} else if err != redis.Nil {
-		return nil, fmt.Errorf("%w: failed to read cache", apperrors.ErrDB)
+		log.Printf("| usecase | GetUserInfo | ошибка при чтении cache")
+		return nil, apperrors.ErrDB
 	}
 
 	account := &entities.Auth{PhoneNumber: dtoReq.PhoneNumber}
@@ -70,12 +73,14 @@ func (uc *userUsecase) GetUserInfo(ctx context.Context, dtoReq dto.GetUserInfoRe
 
 	raw, err := utils.MarshalToString(res)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to encode cache", apperrors.ErrDB)
+		log.Printf("| usecase | GetUserInfo | ошибка при encode cache")
+		return nil, apperrors.ErrDB
 	}
 
 	ttl := time.Duration(uc.cfg.JWT.AccessTTLMinutes) * time.Minute
 	if err := uc.cacheRepo.Set(ctx, cacheKey, raw, ttl); err != nil {
-		return nil, fmt.Errorf("%w: failed to write cache", apperrors.ErrDB)
+		log.Printf("| usecase | GetUserInfo | ошибка при записе cache")
+		return nil, apperrors.ErrDB
 	}
 
 	return &res, nil

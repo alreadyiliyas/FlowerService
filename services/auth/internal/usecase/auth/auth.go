@@ -236,34 +236,38 @@ func (ac *authUsecase) UpdatePassword(ctx context.Context, dtoReq dto.ConfirmUpd
 
 func (ac *authUsecase) Login(ctx context.Context, dtoReq dto.LoginRequest) (dtoRes *dto.LoginResponse, err error) {
 	if dtoReq.PhoneNumber == nil || *dtoReq.PhoneNumber == "" {
-		log.Printf("| usecase | UpdatePassword | задан пустой номер телефона")
+		log.Printf("| usecase | Login | задан пустой номер телефона")
 		return nil, fmt.Errorf("%w: задан пустой номер телефона", apperrors.ErrInvalidInput)
 	}
 	if !utils.IsValidPhoneNumber(*dtoReq.PhoneNumber) {
+		log.Printf("| usecase | Login | проверьте номер телефона")
 		return nil, fmt.Errorf("%w: проверьте номер телефона", apperrors.ErrInvalidInput)
 	}
 
 	if dtoReq.Password == nil || *dtoReq.Password == "" {
-		log.Printf("| usecase | UpdatePassword | задан пустой пароль")
+		log.Printf("| usecase | Login | задан пустой пароль")
 		return nil, fmt.Errorf("%w: задан пустой пароль", apperrors.ErrInvalidInput)
 	}
 
 	account, err := ac.trRepo.GetAccountByPhoneNumber(ctx, dtoReq.PhoneNumber)
 	if err != nil {
-		log.Printf("| usecase | Login | get account error: %v", err)
-		return nil, err
+		log.Printf("| usecase | Login | ошибка сервера при получение GetAccountByPhoneNumber: %v", err)
+		return nil, fmt.Errorf("%w: ошибка сервера", apperrors.ErrDB)
 	}
 	if account.PasswordHash == nil || !utils.CheckPasswordHash(*dtoReq.Password, *account.PasswordHash) {
-		return nil, apperrors.ErrUnauthorized
+		log.Printf("| usecase | Login | ошибка при проверке пароля: %v", err)
+		return nil, fmt.Errorf("%w: не верный пароль", apperrors.ErrInvalidInput)
 	}
 
 	sessionID, err := utils.RandomToken(16)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to generate session id", apperrors.ErrDB)
+		log.Printf("| usecase | Login | ошибка при генерации ID сессии: %v", err)
+		return nil, apperrors.ErrDB
 	}
 	refreshToken, err := utils.RandomToken(32)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to generate refresh token", apperrors.ErrDB)
+		log.Printf("| usecase | Login | ошибка при генерации refresh token: %v", err)
+		return nil, apperrors.ErrDB
 	}
 
 	accessToken, err := utils.GenerateAccessToken(
@@ -275,44 +279,49 @@ func (ac *authUsecase) Login(ctx context.Context, dtoReq dto.LoginRequest) (dtoR
 		time.Duration(ac.cfg.JWT.AccessTTLMinutes)*time.Minute,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to generate access token", apperrors.ErrDB)
+		log.Printf("| usecase | Login | ошибка при генерации access token: %v", err)
+		return nil, apperrors.ErrDB
 	}
 
 	cachePayload := dto.RefreshCache{
-		UserID:          *account.UserId,
-		Role:            *account.User.Role,
-		PhoneNumber:     *account.PhoneNumber,
-		FirstName:       *account.User.FirstName,
-		LastName:        *account.User.LastName,
-		RefreshToken:    refreshToken,
-		SessionID:       sessionID,
+		UserID:       *account.UserId,
+		Role:         *account.User.Role,
+		PhoneNumber:  *account.PhoneNumber,
+		FirstName:    *account.User.FirstName,
+		LastName:     *account.User.LastName,
+		RefreshToken: refreshToken,
+		SessionID:    sessionID,
 	}
 
 	raw, err := utils.MarshalToString(cachePayload)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to encode refresh cache", apperrors.ErrDB)
+		log.Printf("| usecase | Login | ошибка при MarshalToString: %v", err)
+		return nil, apperrors.ErrDB
 	}
 
 	cacheKey := utils.BuildSessionKey(sessionID)
 	cacheKeyByPhone := utils.BuildSessionKeyByPhone(*dtoReq.PhoneNumber)
 	ttl := time.Duration(ac.cfg.JWT.RefreshTTLDays) * 24 * time.Hour
 	if err := ac.cacheRepo.Set(ctx, cacheKey, raw, ttl); err != nil {
-		return nil, fmt.Errorf("%w: failed to store refresh token", apperrors.ErrDB)
+		log.Printf("| usecase | Login | не удалось сохранить токен обновления в кеш: %v", err)
+		return nil, apperrors.ErrDB
 	}
 	if err := ac.cacheRepo.SAdd(ctx, cacheKeyByPhone, sessionID); err != nil {
-		return nil, fmt.Errorf("%w: failed to store session index", apperrors.ErrDB)
+		log.Printf("| usecase | Login | не удалось сохранить индекс сессии в кеш: %v", err)
+		return nil, apperrors.ErrDB
 	}
 	_ = ac.cacheRepo.Expire(ctx, cacheKeyByPhone, ttl)
 
 	return &dto.LoginResponse{
-		AccessToken:     accessToken,
-		SessionID:       sessionID,
+		AccessToken: accessToken,
+		SessionID:   sessionID,
 	}, nil
 }
 
 func (ac *authUsecase) RefreshToken(ctx context.Context, dtoReq dto.RefreshTokenRequest) (dtoRes *dto.RefreshTokenResponse, err error) {
 	if dtoReq.SessionID == nil || *dtoReq.SessionID == "" {
-		return nil, fmt.Errorf("%w: session id is empty", apperrors.ErrInvalidInput)
+		log.Printf("| usecase | RefreshToken | session id пустой")
+		return nil, fmt.Errorf("%w: session id пустой", apperrors.ErrInvalidInput)
 	}
 
 	cacheKey := utils.BuildSessionKey(*dtoReq.SessionID)
@@ -321,12 +330,14 @@ func (ac *authUsecase) RefreshToken(ctx context.Context, dtoReq dto.RefreshToken
 		if err == redis.Nil {
 			return nil, apperrors.ErrUnauthorized
 		}
-		return nil, fmt.Errorf("%w: failed to read refresh token", apperrors.ErrDB)
+		log.Printf("| usecase | RefreshToken | не найден refresh token")
+		return nil, apperrors.ErrDB
 	}
 
 	var cachePayload dto.RefreshCache
 	if err := utils.UnmarshalFromString(raw, &cachePayload); err != nil {
-		return nil, fmt.Errorf("%w: failed to decode refresh cache", apperrors.ErrDB)
+		log.Printf("| usecase | RefreshToken | не получилось decode refresh")
+		return nil, apperrors.ErrDB
 	}
 
 	accessToken, err := utils.GenerateAccessToken(
@@ -338,18 +349,20 @@ func (ac *authUsecase) RefreshToken(ctx context.Context, dtoReq dto.RefreshToken
 		time.Duration(ac.cfg.JWT.AccessTTLMinutes)*time.Minute,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to generate access token", apperrors.ErrDB)
+		log.Printf("| usecase | RefreshToken | ошибка при generate access token")
+		return nil, apperrors.ErrDB
 	}
 
 	return &dto.RefreshTokenResponse{
-		AccessToken:     accessToken,
-		SessionID:       *dtoReq.SessionID,
+		AccessToken: accessToken,
+		SessionID:   *dtoReq.SessionID,
 	}, nil
 }
 
 func (ac *authUsecase) Logout(ctx context.Context, dtoReq dto.LogoutRequest) error {
 	if dtoReq.SessionID == nil || *dtoReq.SessionID == "" {
-		return fmt.Errorf("%w: session id is empty", apperrors.ErrInvalidInput)
+		log.Printf("| usecase | Logout | session id пустой")
+		return fmt.Errorf("%w: session id пустой", apperrors.ErrInvalidInput)
 	}
 
 	cacheKey := utils.BuildSessionKey(*dtoReq.SessionID)
@@ -358,16 +371,19 @@ func (ac *authUsecase) Logout(ctx context.Context, dtoReq dto.LogoutRequest) err
 		if err == redis.Nil {
 			return apperrors.ErrNotFound
 		}
-		return fmt.Errorf("%w: failed to read refresh token", apperrors.ErrDB)
+		log.Printf("| usecase | Logout | ошибка при чтении refresh token")
+		return apperrors.ErrDB
 	}
 
 	var cachePayload dto.RefreshCache
 	if err := utils.UnmarshalFromString(raw, &cachePayload); err != nil {
-		return fmt.Errorf("%w: failed to decode refresh cache", apperrors.ErrDB)
+		log.Printf("| usecase | Logout | ошибка при decode refresh cache")
+		return apperrors.ErrDB
 	}
 
 	if err := ac.cacheRepo.Del(ctx, cacheKey); err != nil {
-		return fmt.Errorf("%w: failed to delete session", apperrors.ErrDB)
+		log.Printf("| usecase | Logout | ошибка при удалении session")
+		return apperrors.ErrDB
 	}
 	if cachePayload.PhoneNumber != "" {
 		cacheKeyByPhone := utils.BuildSessionKeyByPhone(cachePayload.PhoneNumber)
@@ -385,7 +401,8 @@ func (ac *authUsecase) LogoutAll(ctx context.Context, dtoReq dto.LogoutAllReques
 	cacheKeyByPhone := utils.BuildSessionKeyByPhone(*dtoReq.PhoneNumber)
 	sessionIDs, err := ac.cacheRepo.SMembers(ctx, cacheKeyByPhone)
 	if err != nil {
-		return fmt.Errorf("%w: failed to read sessions", apperrors.ErrDB)
+		log.Printf("| usecase | Logout | ошибка при чтении session")
+		return apperrors.ErrDB
 	}
 	if len(sessionIDs) == 0 {
 		return apperrors.ErrNotFound

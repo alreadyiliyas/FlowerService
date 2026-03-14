@@ -45,18 +45,18 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	AccessToken     string `json:"access_token"`
-	SessionID       string `json:"session_id"`
+	AccessToken string `json:"access_token"`
+	SessionID   string `json:"session_id"`
 }
 
 type RefreshCache struct {
-	UserID          uint64 `json:"user_id"`
-	Role            string `json:"role"`
-	PhoneNumber     string `json:"phone_number"`
-	FirstName       string `json:"first_name"`
-	LastName        string `json:"last_name"`
-	RefreshToken    string `json:"refresh_token"`
-	SessionID       string `json:"session_id"`
+	UserID       uint64 `json:"user_id"`
+	Role         string `json:"role"`
+	PhoneNumber  string `json:"phone_number"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	RefreshToken string `json:"refresh_token"`
+	SessionID    string `json:"session_id"`
 }
 
 type RefreshTokenRequest struct {
@@ -64,8 +64,8 @@ type RefreshTokenRequest struct {
 }
 
 type RefreshTokenResponse struct {
-	AccessToken     string `json:"access_token"`
-	SessionID       string `json:"session_id"`
+	AccessToken string `json:"access_token"`
+	SessionID   string `json:"session_id"`
 }
 
 type LogoutRequest struct {
