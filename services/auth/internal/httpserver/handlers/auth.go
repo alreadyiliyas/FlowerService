@@ -150,6 +150,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			utils.Send(w, http.StatusUnauthorized, nil, err.Error())
 		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrAccountNotFound), errors.Is(err, apperrors.ErrUserNotFound):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
+		case errors.Is(err, apperrors.ErrAlreadyNotActive):
+			utils.Send(w, http.StatusNotFound, nil, err.Error())
 		default:
 			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
 		}

@@ -116,7 +116,7 @@ func (ac *authUsecase) VerifyAccount(ctx context.Context, dtoReq dto.VerifyAccou
 
 	if err := ac.trRepo.VerifyAccount(ctx, dtoReq.PhoneNumber); err != nil {
 		log.Printf("| usecase | VerifyAccount | ошибка авторизации: %v", err)
-		return fmt.Errorf("%w: %v", apperrors.ErrDB, err)
+		return err
 	}
 
 	if err := ac.cacheRepo.Del(ctx, key); err != nil {
@@ -153,7 +153,7 @@ func (ac *authUsecase) SetPassword(ctx context.Context, dtoReq dto.SetPasswordRe
 	account := &entities.Auth{PhoneNumber: dtoReq.PhoneNumber, PasswordHash: &hash}
 	if err := ac.trRepo.SetPassword(ctx, account); err != nil {
 		log.Printf("| usecase | SetPassword | set password error: %v", err)
-		return fmt.Errorf("%w: %v", apperrors.ErrDB, err)
+		return err
 	}
 
 	return nil
@@ -224,7 +224,7 @@ func (ac *authUsecase) UpdatePassword(ctx context.Context, dtoReq dto.ConfirmUpd
 	account := &entities.Auth{PhoneNumber: dtoReq.PhoneNumber, PasswordHash: &hash}
 	if err := ac.trRepo.UpdatePassword(ctx, account); err != nil {
 		log.Printf("| usecase | update password | db error: %v", err)
-		return fmt.Errorf("%w: не установить пароль", apperrors.ErrDB)
+		return err
 	}
 
 	if err := ac.cacheRepo.Del(ctx, key); err != nil {
@@ -252,7 +252,7 @@ func (ac *authUsecase) Login(ctx context.Context, dtoReq dto.LoginRequest) (dtoR
 	account, err := ac.trRepo.GetAccountByPhoneNumber(ctx, dtoReq.PhoneNumber)
 	if err != nil {
 		log.Printf("| usecase | Login | ошибка сервера при получение GetAccountByPhoneNumber: %v", err)
-		return nil, fmt.Errorf("%w: ошибка сервера", apperrors.ErrDB)
+		return nil, err
 	}
 	if account.PasswordHash == nil || !utils.CheckPasswordHash(*dtoReq.Password, *account.PasswordHash) {
 		log.Printf("| usecase | Login | ошибка при проверке пароля: %v", err)

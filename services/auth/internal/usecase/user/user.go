@@ -139,7 +139,7 @@ func (uc *userUsecase) UpdateUserInfo(ctx context.Context, dtoReq dto.UpdateUser
 	userEntity, err := uc.trRepo.Update(ctx, account)
 	if err != nil {
 		log.Printf("| usecase | UpdateUserInfo | failed to update in DB: %v", err)
-		return nil, apperrors.ErrDB
+		return nil, err
 	}
 
 	isActive := strconv.FormatBool(userEntity.IsActive)
@@ -236,7 +236,7 @@ func (uc *userUsecase) DeleteUserInfo(ctx context.Context, dtoReq dto.DeleteUser
 	err := uc.trRepo.Delete(ctx, &entities.Auth{PhoneNumber: dtoReq.PhoneNumber})
 	if err != nil {
 		log.Printf("| usecase | DeleteUserInfo | failed to delete: %v", err)
-		return apperrors.ErrDB
+		return err
 	}
 
 	err = uc.cacheRepo.DeleteSessionsByPhone(ctx, *dtoReq.PhoneNumber)

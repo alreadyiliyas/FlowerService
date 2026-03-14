@@ -19,5 +19,6 @@ _G.get_account_by_phone_number = auth.get_account_by_phone_number
 -- User 
 _G.get_user_info_by_phone_number = user.get_user_info_by_phone_number
 _G.update_user_info_by_phone_number = user.update_user_info_by_phone_number
+_G.delete_user = user.delete_user
 
 log.info("Tarantool app loaded")
