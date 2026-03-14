@@ -28,4 +28,4 @@ tarantool/*.xlog
 tarantool/*.snap
 
 #public
-public/
+public/avatars/
