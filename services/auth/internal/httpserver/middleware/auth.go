@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -65,20 +66,24 @@ func AuthMiddleware(jwtSecret string, authUC authusecase.UsecaseAuth) func(http.
 				return
 			}
 
-			ok, err := authUC.IsSessionActive(r.Context(), claims.SessionID)
+			session, err := authUC.GetSession(r.Context(), claims.SessionID)
 			if err != nil {
+				if errors.Is(err, apperrors.ErrUnauthorized) {
+					utils.Send(w, http.StatusUnauthorized, nil, apperrors.ErrUnauthorized.Error())
+					return
+				}
 				utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
 				return
 			}
-			if !ok {
+			if session.UserID != claims.UserID {
 				utils.Send(w, http.StatusUnauthorized, nil, apperrors.ErrUnauthorized.Error())
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), ctxUserID, claims.UserID)
-			ctx = context.WithValue(ctx, ctxRole, claims.Role)
-			ctx = context.WithValue(ctx, ctxPhone, claims.Phone)
-			ctx = context.WithValue(ctx, ctxSessionID, claims.SessionID)
+			ctx := context.WithValue(r.Context(), ctxUserID, session.UserID)
+			ctx = context.WithValue(ctx, ctxRole, session.Role)
+			ctx = context.WithValue(ctx, ctxPhone, session.PhoneNumber)
+			ctx = context.WithValue(ctx, ctxSessionID, session.SessionID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

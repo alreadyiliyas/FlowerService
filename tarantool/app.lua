@@ -6,6 +6,7 @@ local user = require("modules.user")
 runner.run({
     require("migrations.001_init_spaces"),
     require("migrations.002_seed_roles"),
+    require("migrations.003_add_user_avatar"),
 })
 
 -- Account
@@ -17,6 +18,6 @@ _G.get_account_by_phone_number = auth.get_account_by_phone_number
 
 -- User 
 _G.get_user_info_by_phone_number = user.get_user_info_by_phone_number
+_G.update_user_info_by_phone_number = user.update_user_info_by_phone_number
 
 log.info("Tarantool app loaded")
-

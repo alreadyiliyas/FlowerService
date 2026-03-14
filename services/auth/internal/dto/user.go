@@ -21,12 +21,17 @@ type GetUserInfoResponse struct {
 	LastName    *string    `json:"last_name,omitempty"`
 	RoleName    *string    `json:"role_name,omitempty"`
 	IsActive    *string    `json:"is_active,omitempty"`
+	AvatarURL   *string    `json:"avatar_url,omitempty"`
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 }
 
 type UpdateUserInfoRequest struct {
 	PhoneNumber *string `json:"phone_number,omitempty"`
+	FirstName   *string `json:"first_name,omitempty"`
+	LastName    *string `json:"last_name,omitempty"`
+	NewPhoneNumber *string `json:"new_phone_number,omitempty"`
+	AvatarURL   *string `json:"avatar_url,omitempty"`
 }
 
 type UpdateUserInfoResponse struct {
@@ -36,6 +41,7 @@ type UpdateUserInfoResponse struct {
 	LastName    *string    `json:"last_name,omitempty"`
 	RoleName    *string    `json:"role_name,omitempty"`
 	IsActive    *string    `json:"is_active,omitempty"`
+	AvatarURL   *string    `json:"avatar_url,omitempty"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 }
 

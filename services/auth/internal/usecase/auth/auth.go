@@ -425,3 +425,24 @@ func (ac *authUsecase) IsSessionActive(ctx context.Context, sessionID string) (b
 	}
 	return ac.cacheRepo.Exists(ctx, utils.BuildSessionKey(sessionID))
 }
+
+func (ac *authUsecase) GetSession(ctx context.Context, sessionID string) (*dto.RefreshCache, error) {
+	if sessionID == "" {
+		return nil, apperrors.ErrInvalidInput
+	}
+
+	raw, err := ac.cacheRepo.Get(ctx, utils.BuildSessionKey(sessionID))
+	if err != nil {
+		if err == redis.Nil {
+			return nil, apperrors.ErrUnauthorized
+		}
+		return nil, apperrors.ErrDB
+	}
+
+	var payload dto.RefreshCache
+	if err := utils.UnmarshalFromString(raw, &payload); err != nil {
+		return nil, apperrors.ErrDB
+	}
+
+	return &payload, nil
+}

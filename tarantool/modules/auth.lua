@@ -17,7 +17,7 @@ function M.create_user(first_name, last_name, phone_number, role_name)
         end
 
         local user = box.space.users:auto_increment{
-            first_name, last_name, role.id, 1, false, now, now, box.NULL
+            first_name, last_name, role.id, 1, false, now, now, box.NULL, box.NULL
         }
 
         box.space.auths:auto_increment{

@@ -17,4 +17,5 @@ type UsecaseAuth interface {
 	Logout(ctx context.Context, dtoReq dto.LogoutRequest) error
 	LogoutAll(ctx context.Context, dtoReq dto.LogoutAllRequest) error
 	IsSessionActive(ctx context.Context, sessionID string) (bool, error)
+	GetSession(ctx context.Context, sessionID string) (*dto.RefreshCache, error)
 }

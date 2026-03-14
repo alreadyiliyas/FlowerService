@@ -1,6 +1,8 @@
 package httpserver
 
 import (
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"github.com/ilyas/flower/services/auth/internal/httpserver/handlers"
 	"github.com/ilyas/flower/services/auth/internal/httpserver/middleware"
@@ -42,6 +44,10 @@ func newRouter(authUC authusecase.UsecaseAuth, userUC userusecase.UsecaseUser, j
 	userRouter := router.PathPrefix("/v1/user").Subrouter()
 	userRouter.Use(middleware.AuthMiddleware(jwtSecret, authUC))
 	userRouter.HandleFunc("/me", userHandler.GetUserInfo).Methods("GET")
+	userRouter.HandleFunc("/me/update", userHandler.UpdateUserInfo).Methods("PATCH")
+	userRouter.HandleFunc("/me/avatar", userHandler.UploadAvatar).Methods("POST")
+
+	router.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("public"))))
 
 	return router
 }

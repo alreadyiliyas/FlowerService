@@ -15,6 +15,17 @@ func ToString(v interface{}, field string) (string, error) {
 	return s, nil
 }
 
+func ToStringNullable(v interface{}, field string) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	s, ok := v.(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid %s type: got %T, want string", field, v)
+	}
+	return &s, nil
+}
+
 func ToUint64(v interface{}, field string) (uint64, error) {
 	switch n := v.(type) {
 	case uint64:
@@ -91,6 +102,13 @@ func ToBool(v interface{}, field string) (bool, error) {
 		return false, fmt.Errorf("invalid %s type: got %T, want string", field, v)
 	}
 	return b, nil
+}
+
+func ValueOrNull(s *string) interface{} {
+	if s == nil {
+		return nil
+	}
+	return *s
 }
 
 func MarshalToString(v interface{}) (string, error) {

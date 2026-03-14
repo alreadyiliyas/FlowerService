@@ -6,7 +6,9 @@ type User struct {
 	Id        *uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	FirstName *string    `json:"first_name"`
 	LastName  *string    `json:"last_name"`
+	PhoneNumber *string  `json:"phone_number"`
 	Role      *string    `json:"role"`
+	AvatarURL *string    `json:"avatar_url"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
