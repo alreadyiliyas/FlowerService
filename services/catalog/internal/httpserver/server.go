@@ -1,0 +1,43 @@
+package httpserver
+
+import (
+	"context"
+	"net/http"
+
+	usecaseCateg "github.com/ilyas/flower/services/catalog/internal/usecase/categories"
+	usecaseProd "github.com/ilyas/flower/services/catalog/internal/usecase/products"
+)
+
+// Config описывает настройки HTTP-сервера.
+type Config struct {
+	Address   string
+	JWTSecret string
+}
+
+// Server инкапсулирует http.Server.
+type Server struct {
+	httpServer *http.Server
+}
+
+// New создаёт новый HTTP-сервер с переданным конфигом.
+func New(cfg Config, cu usecaseCateg.UsecaseCategories, pu usecaseProd.ProductUsecase) *Server {
+	handler := newRouter(cu, pu, cfg.JWTSecret)
+
+	return &Server{
+		httpServer: &http.Server{
+			Addr:    cfg.Address,
+			Handler: handler,
+		},
+	}
+}
+
+// Start запускает HTTP-сервер и слушает до остановки.
+func (s *Server) Start(ctx context.Context) error {
+	// Грейсфул-шатдаун по завершению контекста.
+	go func() {
+		<-ctx.Done()
+		_ = s.httpServer.Shutdown(context.Background())
+	}()
+
+	return s.httpServer.ListenAndServe()
+}

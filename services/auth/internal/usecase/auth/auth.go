@@ -255,7 +255,7 @@ func (ac *authUsecase) Login(ctx context.Context, dtoReq dto.LoginRequest) (dtoR
 		return nil, err
 	}
 	if account.PasswordHash == nil || !utils.CheckPasswordHash(*dtoReq.Password, *account.PasswordHash) {
-		log.Printf("| usecase | Login | ошибка при проверке пароля: %v", err)
+		log.Printf("| usecase | Login | ошибка при проверке пароля")
 		return nil, fmt.Errorf("%w: не верный пароль", apperrors.ErrInvalidInput)
 	}
 
