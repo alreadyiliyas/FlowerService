@@ -2,11 +2,13 @@
 local runner = require("migrations.runner")
 local auth = require("modules.auth")
 local user = require("modules.user")
+local category = require("modules.category")
 
 runner.run({
     require("migrations.001_init_spaces"),
     require("migrations.002_seed_roles"),
     require("migrations.003_add_user_avatar"),
+    require("migrations.004_add_catalog"),
 })
 
 -- Account
@@ -20,5 +22,9 @@ _G.get_account_by_phone_number = auth.get_account_by_phone_number
 _G.get_user_info_by_phone_number = user.get_user_info_by_phone_number
 _G.update_user_info_by_phone_number = user.update_user_info_by_phone_number
 _G.delete_user = user.delete_user
+
+
+-- Categories
+_G.create_category = category.create_category
 
 log.info("Tarantool app loaded")
