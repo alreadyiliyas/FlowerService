@@ -9,6 +9,8 @@ import (
 
 	"github.com/ilyas/flower/services/catalog/internal/config"
 	"github.com/ilyas/flower/services/catalog/internal/httpserver"
+	categoriesrepo "github.com/ilyas/flower/services/catalog/internal/repositories/categories"
+	productsrepo "github.com/ilyas/flower/services/catalog/internal/repositories/products"
 	redisclient "github.com/ilyas/flower/services/catalog/internal/redis"
 	tntclient "github.com/ilyas/flower/services/catalog/internal/tarantool"
 	usecaseCateg "github.com/ilyas/flower/services/catalog/internal/usecase/categories"
@@ -45,8 +47,11 @@ func Run() error {
 	}
 	defer redisConn.Close()
 
-	cu := usecaseCateg.NewCategoriesUsecase(nil)
-	pu := usecaseProd.NewproductsUsecase(nil)
+	categoriesRepository := categoriesrepo.NewTarantoolRepository(tntConn)
+	productsRepository := productsrepo.NewTarantoolRepository(tntConn)
+
+	cu := usecaseCateg.NewCategoriesUsecase(categoriesRepository)
+	pu := usecaseProd.NewproductsUsecase(productsRepository)
 
 	httpSrv := httpserver.New(httpserver.Config{
 		Address:   cfg.HTTP.Address,

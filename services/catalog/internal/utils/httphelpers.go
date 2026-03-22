@@ -8,6 +8,8 @@ import (
 	"github.com/ilyas/flower/services/catalog/internal/dto"
 )
 
+const CategoryMaxUploadSize int64 = 5 << 20
+
 func ParseUint64Path(r *http.Request, key string) (uint64, error) {
 	val := mux.Vars(r)[key]
 	return strconv.ParseUint(val, 10, 64)

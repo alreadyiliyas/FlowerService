@@ -1,3 +1,5 @@
+local log = require("log")
+
 return {
     id = "004_add_catalog",
     up = function ()

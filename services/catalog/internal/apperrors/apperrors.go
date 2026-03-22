@@ -2,21 +2,25 @@ package apperrors
 
 import "errors"
 
-// Not found
 var (
-	ErrNotFound = errors.New("Р·Р°РїРёСЃСЊ РЅРµ РЅР°Р№РґРµРЅР°")
-)
+	ErrNotFound             = errors.New("запись не найдена")
+	ErrNotFoundCategoryName = errors.New("категория не найдена")
+	ErrNotFoundCategorySlug = errors.New("запись 'slug' не найдена")
 
-// Duplicate
-var (
-	ErrDuplicate      = errors.New("Р·Р°РїРёСЃСЊ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚")
-	ErrDuplicatePhone = errors.New("РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР° СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚")
-)
+	ErrInvalidPhoneFormat = errors.New("неверный формат номера телефона")
+	ErrCodeIsExpired      = errors.New("код подтверждения истек")
 
-// Others
-var (
-	ErrUnauthorized = errors.New("РЅРµ Р°РІС‚РѕСЂРёР·РѕРІР°РЅ")
-	ErrForbidden    = errors.New("РґРѕСЃС‚СѓРї Р·Р°РїСЂРµС‰РµРЅ")
-	ErrInvalidInput = errors.New("РЅРµРІРµСЂРЅС‹Рµ РІС…РѕРґРЅС‹Рµ РґР°РЅРЅС‹Рµ")
-	ErrDB           = errors.New("РЅРµРїСЂРµРґРІРёРґРµРЅРЅР°СЏ РѕС€РёР±РєР° СЃРµСЂРІРµСЂР°")
+	ErrDuplicate             = errors.New("запись уже существует")
+	ErrDuplicateCategoryName = errors.New("такая категория уже существует")
+	ErrDuplicateCategorySlug = errors.New("такой slug уже существует")
+
+	ErrSessionRequired = errors.New("session_id обязателен")
+	ErrPasswordNull    = errors.New("пароль обязателен")
+
+	ErrUnauthorized = errors.New("не авторизован")
+	ErrForbidden    = errors.New("доступ запрещен")
+
+	ErrInvalidInput = errors.New("неверные входные данные")
+
+	ErrDB = errors.New("непредвиденная ошибка сервера")
 )
