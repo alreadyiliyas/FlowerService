@@ -16,7 +16,8 @@ var tarantoolRules = []DBRule{
 	{DBerr: "SLUG_IS_NULL", Err: apperrors.ErrInvalidInput},
 	{DBerr: "NAME_ALREADY_EXISTS", Err: apperrors.ErrDuplicateCategoryName},
 	{DBerr: "SLUG_ALREADY_EXISTS", Err: apperrors.ErrDuplicateCategorySlug},
-	{DBerr: "CATEGORY_NOT_FOUND", Err: apperrors.ErrNotFound},
+	{DBerr: "CATEGORY_NOT_FOUND", Err: apperrors.ErrNotFoundCategoryName},
+	{DBerr: "PRODUCT_INVALID", Err: apperrors.ErrInvalidInput},
 }
 
 func MapDBError(err error, rules []DBRule) error {

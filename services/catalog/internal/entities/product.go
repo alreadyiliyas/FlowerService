@@ -22,7 +22,6 @@ type Discount struct {
 type Product struct {
 	ID           *uint64            `json:"id"`
 	Name         *string            `json:"name"`
-	Slug         *string            `json:"slug"`
 	Description  *string            `json:"description,omitempty"`
 	CategoryID   *uint64            `json:"category_id"`
 	SellerID     *uint64            `json:"seller_id"`

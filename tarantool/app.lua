@@ -3,6 +3,7 @@ local runner = require("migrations.runner")
 local auth = require("modules.auth")
 local user = require("modules.user")
 local category = require("modules.category")
+local product = require("modules.product")
 
 runner.run({
     require("migrations.001_init_spaces"),
@@ -30,5 +31,8 @@ _G.list_categories = category.list_categories
 _G.get_category = category.get_category
 _G.update_category = category.update_category
 _G.delete_category = category.delete_category
+
+-- Products
+_G.create_product = product.create_product
 
 log.info("Tarantool app loaded")

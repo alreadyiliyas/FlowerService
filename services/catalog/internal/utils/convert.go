@@ -79,6 +79,16 @@ func ToUint64(v interface{}, field string) (uint64, error) {
 
 func ToInt(v interface{}, field string) (int, error) {
 	switch n := v.(type) {
+	case uint64:
+		return int(n), nil
+	case uint32:
+		return int(n), nil
+	case uint16:
+		return int(n), nil
+	case uint8:
+		return int(n), nil
+	case uint:
+		return int(n), nil
 	case int64:
 		return int(n), nil
 	case int32:
@@ -151,4 +161,90 @@ func MapCategoryToDTO(item entities.Category) dto.Category {
 		category.UpdatedAt = item.UpdatedAt.Format(time.RFC3339)
 	}
 	return category
+}
+
+func MapProductEntityToDTO(item entities.Product) *dto.Product {
+	product := &dto.Product{
+		IsAvailable: item.IsAvailable,
+		Images:      append([]string(nil), item.Images...),
+	}
+
+	if item.ID != nil {
+		product.ID = *item.ID
+	}
+	if item.Name != nil {
+		product.Name = *item.Name
+	}
+	if item.Description != nil {
+		product.Description = *item.Description
+	}
+	if item.CategoryID != nil {
+		product.CategoryID = *item.CategoryID
+	}
+	if item.SellerID != nil {
+		product.SellerID = *item.SellerID
+	}
+	if item.MainImageURL != nil {
+		product.MainImageURL = *item.MainImageURL
+	}
+	if item.Currency != nil {
+		product.Currency = *item.Currency
+	}
+	if item.PricePerStem != nil {
+		product.PricePerStem = int(*item.PricePerStem)
+	}
+	if item.MinStems != nil {
+		product.MinStems = int(*item.MinStems)
+	}
+	if item.MaxStems != nil {
+		product.MaxStems = int(*item.MaxStems)
+	}
+	if item.CreatedAt != nil {
+		product.CreatedAt = item.CreatedAt.Format(time.RFC3339)
+	}
+	if item.UpdatedAt != nil {
+		product.UpdatedAt = item.UpdatedAt.Format(time.RFC3339)
+	}
+
+	product.Sizes = make([]dto.SizePrice, 0, len(item.Sizes))
+	for _, size := range item.Sizes {
+		sizeDTO := dto.SizePrice{}
+		if size.Size != nil {
+			sizeDTO.Size = *size.Size
+		}
+		if size.BasePrice != nil {
+			sizeDTO.BasePrice = int(*size.BasePrice)
+		}
+		product.Sizes = append(product.Sizes, sizeDTO)
+	}
+
+	product.Composition = make([]dto.CompositionItem, 0, len(item.Composition))
+	for _, composition := range item.Composition {
+		compositionDTO := dto.CompositionItem{}
+		if composition.FlowerType != nil {
+			compositionDTO.FlowerType = *composition.FlowerType
+		}
+		if composition.Stems != nil {
+			compositionDTO.Stems = int(*composition.Stems)
+		}
+		product.Composition = append(product.Composition, compositionDTO)
+	}
+
+	if item.Discount != nil {
+		product.Discount = &dto.Discount{}
+		if item.Discount.Type != nil {
+			product.Discount.Type = *item.Discount.Type
+		}
+		if item.Discount.Value != nil {
+			product.Discount.Value = int(*item.Discount.Value)
+		}
+		if item.Discount.StartsAt != nil {
+			product.Discount.StartsAt = *item.Discount.StartsAt
+		}
+		if item.Discount.EndsAt != nil {
+			product.Discount.EndsAt = *item.Discount.EndsAt
+		}
+	}
+
+	return product
 }

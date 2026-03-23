@@ -24,7 +24,6 @@ return {
         p:format({
             {name="id",             type="unsigned"},
             {name="name",           type="string"},
-            {name="slug",           type="string"},
             {name="description",    type="string", is_nullable=true},
             {name="category_id",    type="unsigned"},
             {name="seller_id",      type="unsigned"},
@@ -47,7 +46,6 @@ return {
         
         box.schema.sequence.create("products_seq", { if_not_exists = true } )
         p:create_index("primary", { parts={{field="id", type="unsigned"}}, sequence="products_seq", if_not_exists=true })
-        p:create_index("slug", { parts={{field="slug", type="string"}}, unique=true, if_not_exists=true })
         p:create_index("category_id", { parts={{field="category_id", type="unsigned"}}, unique=false, if_not_exists=true })
         p:create_index("seller_id", { parts={{field="seller_id", type="unsigned"}}, unique=false, if_not_exists=true })
         p:create_index("is_available", { parts={{field="is_available", type="boolean"}}, unique=false, if_not_exists=true })

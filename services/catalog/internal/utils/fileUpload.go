@@ -28,6 +28,15 @@ type UploadedFile struct {
 	PublicURL string
 }
 
+type UploadImagesParams struct {
+	Files        []multipart.File
+	Headers      []*multipart.FileHeader
+	Dir          string
+	PublicPrefix string
+	AllowedExt   []string
+	FileNameSize int
+}
+
 func ValidateImageExtension(filename string, allowed []string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
 	for _, item := range allowed {
@@ -94,6 +103,48 @@ func UploadImage(params UploadImageParams) (*UploadedFile, error) {
 	}, nil
 }
 
+func UploadImages(params UploadImagesParams) ([]UploadedFile, error) {
+	if len(params.Files) == 0 {
+		return nil, fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, "не переданы картинки")
+	}
+	if len(params.Files) != len(params.Headers) {
+		return nil, fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, "количество файлов и заголовков картинок не совпадает")
+	}
+
+	uploaded := make([]UploadedFile, 0, len(params.Files))
+	for i := range params.Files {
+		file := params.Files[i]
+		header := params.Headers[i]
+
+		item, err := UploadImage(UploadImageParams{
+			File:         file,
+			Header:       header,
+			Dir:          params.Dir,
+			PublicPrefix: params.PublicPrefix,
+			AllowedExt:   params.AllowedExt,
+			FileNameSize: params.FileNameSize,
+		})
+
+		closeErr := file.Close()
+		if err != nil {
+			DeleteUploadedFiles(uploaded)
+			if closeErr != nil {
+				return nil, closeErr
+			}
+			return nil, err
+		}
+		if closeErr != nil {
+			DeleteUploadedFiles(uploaded)
+			DeleteFileIfExists(item.FullPath)
+			return nil, closeErr
+		}
+
+		uploaded = append(uploaded, *item)
+	}
+
+	return uploaded, nil
+}
+
 func DeleteFileIfExists(path string) {
 	if path == "" {
 		return
@@ -101,11 +152,17 @@ func DeleteFileIfExists(path string) {
 	_ = os.Remove(path)
 }
 
+func DeleteUploadedFiles(files []UploadedFile) {
+	for _, file := range files {
+		DeleteFileIfExists(file.FullPath)
+	}
+}
+
 type ReplaceImageParams struct {
-	File             multipart.File
-	Header           *multipart.FileHeader
+	File              multipart.File
+	Header            *multipart.FileHeader
 	ExistingPublicURL string
-	AllowedExt       []string
+	AllowedExt        []string
 }
 
 func ReplaceImage(params ReplaceImageParams) (*UploadedFile, error) {

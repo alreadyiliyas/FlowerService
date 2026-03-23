@@ -39,6 +39,14 @@ type Product struct {
 	UpdatedAt    string            `json:"updated_at"`
 }
 
+type CreateProductRequest struct {
+	Product         Product                  `json:"-"`
+	MainImage       multipart.File           `json:"-"`
+	MainImageHeader *multipart.FileHeader    `json:"-"`
+	Images          []multipart.File         `json:"-"`
+	ImageHeaders    []*multipart.FileHeader  `json:"-"`
+}
+
 type CreateCategoryRequest struct {
 	Name        string                `json:"name"`
 	Slug        string                `json:"slug"`
