@@ -125,6 +125,20 @@ func ValueOrNull(s *string) interface{} {
 	return *s
 }
 
+func Uint64OrNull(v *uint64) interface{} {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
+func BoolOrNull(v *bool) interface{} {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
 func MarshalToString(v interface{}) (string, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -247,4 +261,56 @@ func MapProductEntityToDTO(item entities.Product) *dto.Product {
 	}
 
 	return product
+}
+
+func MapProductFilterToEntity(filter dto.ProductFilter) entities.ProductFilter {
+	entityFilter := entities.ProductFilter{
+		Page:     1,
+		PageSize: 20,
+	}
+
+	if filter.CategoryID != nil {
+		entityFilter.CategoryID = filter.CategoryID
+	}
+	if filter.SellerID != nil {
+		entityFilter.SellerID = filter.SellerID
+	}
+	if filter.PriceMin != nil {
+		value := uint64(*filter.PriceMin)
+		entityFilter.PriceMin = &value
+	}
+	if filter.PriceMax != nil {
+		value := uint64(*filter.PriceMax)
+		entityFilter.PriceMax = &value
+	}
+	if filter.Size != nil {
+		size := *filter.Size
+		entityFilter.Size = &size
+	}
+	if filter.IsAvailable != nil {
+		entityFilter.IsAvailable = filter.IsAvailable
+	}
+	if filter.Page != nil && *filter.Page > 0 {
+		entityFilter.Page = *filter.Page
+	}
+	if filter.PageSize != nil && *filter.PageSize > 0 {
+		entityFilter.PageSize = *filter.PageSize
+	}
+
+	return entityFilter
+}
+
+func MapPaginatedProductsToDTO(page entities.PaginatedProducts) dto.PaginatedProducts {
+	result := dto.PaginatedProducts{
+		Items:    make([]dto.Product, 0, len(page.Items)),
+		Total:    page.Total,
+		Page:     page.Page,
+		PageSize: page.PageSize,
+	}
+
+	for _, item := range page.Items {
+		result.Items = append(result.Items, *MapProductEntityToDTO(item))
+	}
+
+	return result
 }

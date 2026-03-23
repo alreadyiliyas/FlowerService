@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"mime/multipart"
 	"net/http"
 	"strconv"
 
@@ -59,4 +60,32 @@ func ParseProductFilter(r *http.Request) dto.ProductFilter {
 	}
 
 	return filter
+}
+
+func OpenMultipartFiles(form *multipart.Form, field string) ([]multipart.File, []*multipart.FileHeader, error) {
+	if form == nil || form.File == nil {
+		return nil, nil, nil
+	}
+
+	headers := form.File[field]
+	files := make([]multipart.File, 0, len(headers))
+	resultHeaders := make([]*multipart.FileHeader, 0, len(headers))
+
+	for _, header := range headers {
+		file, err := header.Open()
+		if err != nil {
+			CloseMultipartFiles(files)
+			return nil, nil, err
+		}
+		files = append(files, file)
+		resultHeaders = append(resultHeaders, header)
+	}
+
+	return files, resultHeaders, nil
+}
+
+func CloseMultipartFiles(files []multipart.File) {
+	for _, file := range files {
+		_ = file.Close()
+	}
 }

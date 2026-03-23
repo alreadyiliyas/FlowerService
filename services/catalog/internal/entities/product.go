@@ -40,3 +40,21 @@ type Product struct {
 	UpdatedAt    *time.Time         `json:"updated_at,omitempty"`
 	DeletedAt    *time.Time         `json:"deleted_at,omitempty"`
 }
+
+type ProductFilter struct {
+	CategoryID  *uint64
+	SellerID    *uint64
+	PriceMin    *uint64
+	PriceMax    *uint64
+	Size        *string
+	IsAvailable *bool
+	Page        int
+	PageSize    int
+}
+
+type PaginatedProducts struct {
+	Items    []Product
+	Total    int
+	Page     int
+	PageSize int
+}

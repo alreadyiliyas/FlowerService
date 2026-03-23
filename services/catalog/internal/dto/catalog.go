@@ -47,6 +47,14 @@ type CreateProductRequest struct {
 	ImageHeaders    []*multipart.FileHeader  `json:"-"`
 }
 
+type UpdateProductRequest struct {
+	Product         Product                 `json:"-"`
+	MainImage       multipart.File          `json:"-"`
+	MainImageHeader *multipart.FileHeader   `json:"-"`
+	Images          []multipart.File        `json:"-"`
+	ImageHeaders    []*multipart.FileHeader `json:"-"`
+}
+
 type CreateCategoryRequest struct {
 	Name        string                `json:"name"`
 	Slug        string                `json:"slug"`

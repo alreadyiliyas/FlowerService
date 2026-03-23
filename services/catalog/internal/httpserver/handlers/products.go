@@ -76,22 +76,11 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var images []multipart.File
-	var headers []*multipart.FileHeader
-	if r.MultipartForm != nil && r.MultipartForm.File != nil {
-		for _, fileHeader := range r.MultipartForm.File["images"] {
-			file, err := fileHeader.Open()
-			if err != nil {
-				for _, opened := range images {
-					_ = opened.Close()
-				}
-				_ = mainImage.Close()
-				utils.Send(w, http.StatusBadRequest, nil, "invalid images")
-				return
-			}
-			images = append(images, file)
-			headers = append(headers, fileHeader)
-		}
+	images, headers, err := utils.OpenMultipartFiles(r.MultipartForm, "images")
+	if err != nil {
+		_ = mainImage.Close()
+		utils.Send(w, http.StatusBadRequest, nil, "invalid images")
+		return
 	}
 
 	req := dto.CreateProductRequest{
@@ -107,6 +96,8 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidInput):
 			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		case errors.Is(err, apperrors.ErrConflict):
+			utils.Send(w, http.StatusConflict, nil, err.Error())
 		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrNotFoundCategoryName):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
 		default:
@@ -123,16 +114,57 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		utils.Send(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
-	var req dto.Product
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
+	r.Body = http.MaxBytesReader(w, r.Body, productMaxUploadSize)
+	if err := r.ParseMultipartForm(productMaxUploadSize); err != nil {
+		utils.Send(w, http.StatusBadRequest, nil, "invalid multipart form")
 		return
 	}
+
+	payload := r.FormValue("payload")
+	if payload == "" {
+		utils.Send(w, http.StatusBadRequest, nil, "payload is required")
+		return
+	}
+
+	var product dto.Product
+	if err := json.Unmarshal([]byte(payload), &product); err != nil {
+		utils.Send(w, http.StatusBadRequest, nil, "invalid payload")
+		return
+	}
+
+	var mainImage multipart.File
+	var mainHeader *multipart.FileHeader
+	mainImage, mainHeader, err = r.FormFile("main_image")
+	if err != nil {
+		mainImage = nil
+		mainHeader = nil
+	}
+
+	images, headers, err := utils.OpenMultipartFiles(r.MultipartForm, "images")
+	if err != nil {
+		if mainImage != nil {
+			_ = mainImage.Close()
+		}
+		utils.Send(w, http.StatusBadRequest, nil, "invalid images")
+		return
+	}
+
+	req := dto.UpdateProductRequest{
+		Product:         product,
+		MainImage:       mainImage,
+		MainImageHeader: mainHeader,
+		Images:          images,
+		ImageHeaders:    headers,
+	}
+
 	resp, err := h.usecase.UpdateProduct(r.Context(), id, req)
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidInput):
 			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		case errors.Is(err, apperrors.ErrConflict):
+			utils.Send(w, http.StatusConflict, nil, err.Error())
 		case errors.Is(err, apperrors.ErrNotFound):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
 		default:

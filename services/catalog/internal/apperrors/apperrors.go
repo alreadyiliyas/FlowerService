@@ -19,6 +19,7 @@ var (
 
 	ErrUnauthorized = errors.New("не авторизован")
 	ErrForbidden    = errors.New("доступ запрещен")
+	ErrConflict     = errors.New("конфликт данных")
 
 	ErrInvalidInput = errors.New("неверные входные данные")
 

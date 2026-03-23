@@ -53,7 +53,7 @@ func Run() error {
 	cacheRepository := cacherepo.NewRedisRepository(redisConn)
 
 	cu := usecaseCateg.NewCategoriesUsecase(categoriesRepository, cacheRepository)
-	pu := usecaseProd.NewproductsUsecase(productsRepository)
+	pu := usecaseProd.NewproductsUsecase(productsRepository, cacheRepository)
 
 	httpSrv := httpserver.New(httpserver.Config{
 		Address:   cfg.HTTP.Address,

@@ -280,6 +280,10 @@ func ParseProductEntity(raw interface{}) (*entities.Product, error) {
 	if err != nil {
 		return nil, err
 	}
+	version, err := ToUint64(row["version"], "version")
+	if err != nil {
+		return nil, err
+	}
 
 	sizes := make([]entities.SizePrice, 0, len(sizesDTO))
 	for _, item := range sizesDTO {
@@ -332,8 +336,52 @@ func ParseProductEntity(raw interface{}) (*entities.Product, error) {
 		MaxStems:     &maxStems,
 		Composition:  composition,
 		Discount:     discount,
+		Version:      version,
 		CreatedAt:    &createdAt,
 		UpdatedAt:    &updatedAt,
+	}, nil
+}
+
+// ParsePaginatedProductEntities преобразует paginated-ответ Tarantool
+// со списком продуктов и метаданными пагинации в доменную структуру.
+func ParsePaginatedProductEntities(raw interface{}) (entities.PaginatedProducts, error) {
+	row, err := NormalizeTarantoolMap(raw)
+	if err != nil {
+		return entities.PaginatedProducts{}, err
+	}
+
+	itemsRaw, ok := row["items"].([]interface{})
+	if !ok {
+		return entities.PaginatedProducts{}, fmt.Errorf("invalid items type: %T", row["items"])
+	}
+
+	total, err := ToInt(row["total"], "total")
+	if err != nil {
+		return entities.PaginatedProducts{}, err
+	}
+	page, err := ToInt(row["page"], "page")
+	if err != nil {
+		return entities.PaginatedProducts{}, err
+	}
+	pageSize, err := ToInt(row["page_size"], "page_size")
+	if err != nil {
+		return entities.PaginatedProducts{}, err
+	}
+
+	items := make([]entities.Product, 0, len(itemsRaw))
+	for _, item := range itemsRaw {
+		product, err := ParseProductEntity(item)
+		if err != nil {
+			return entities.PaginatedProducts{}, err
+		}
+		items = append(items, *product)
+	}
+
+	return entities.PaginatedProducts{
+		Items:    items,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
 	}, nil
 }
 

@@ -34,5 +34,9 @@ _G.delete_category = category.delete_category
 
 -- Products
 _G.create_product = product.create_product
+_G.list_products = product.list_products
+_G.get_product = product.get_product
+_G.update_product = product.update_product
+_G.delete_product = product.delete_product
 
 log.info("Tarantool app loaded")

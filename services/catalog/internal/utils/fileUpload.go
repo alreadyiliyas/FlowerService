@@ -37,6 +37,13 @@ type UploadImagesParams struct {
 	FileNameSize int
 }
 
+type ReplaceImageParams struct {
+	File              multipart.File
+	Header            *multipart.FileHeader
+	ExistingPublicURL string
+	AllowedExt        []string
+}
+
 func ValidateImageExtension(filename string, allowed []string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
 	for _, item := range allowed {
@@ -158,11 +165,21 @@ func DeleteUploadedFiles(files []UploadedFile) {
 	}
 }
 
-type ReplaceImageParams struct {
-	File              multipart.File
-	Header            *multipart.FileHeader
-	ExistingPublicURL string
-	AllowedExt        []string
+func PublicURLToPath(publicURL string) string {
+	if publicURL == "" {
+		return ""
+	}
+	return filepath.FromSlash(strings.TrimPrefix(publicURL, "/"))
+}
+
+func DeletePublicFile(publicURL string) {
+	DeleteFileIfExists(PublicURLToPath(publicURL))
+}
+
+func DeletePublicFiles(publicURLs []string) {
+	for _, publicURL := range publicURLs {
+		DeletePublicFile(publicURL)
+	}
 }
 
 func ReplaceImage(params ReplaceImageParams) (*UploadedFile, error) {

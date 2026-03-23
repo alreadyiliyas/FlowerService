@@ -173,6 +173,25 @@ func ValidateProductMedia(product *entities.Product) error {
 	return nil
 }
 
+func ValidateProductUpdateImages(mainImageHeader *multipart.FileHeader, imageHeaders []*multipart.FileHeader) error {
+	if mainImageHeader != nil {
+		if _, err := ValidateImageExtension(mainImageHeader.Filename, []string{".jpg", ".jpeg", ".png", ".webp"}); err != nil {
+			return err
+		}
+	}
+
+	for _, header := range imageHeaders {
+		if header == nil {
+			return fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, "передан пустой заголовок картинки продукта")
+		}
+		if _, err := ValidateImageExtension(header.Filename, []string{".jpg", ".jpeg", ".png", ".webp"}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func ValidateProductImages(mainImageHeader *multipart.FileHeader, imageHeaders []*multipart.FileHeader) error {
 	switch {
 	case mainImageHeader == nil:
