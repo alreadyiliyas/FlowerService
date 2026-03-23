@@ -47,6 +47,14 @@ type CreateCategoryRequest struct {
 	ImageHeader *multipart.FileHeader `json:"-"`
 }
 
+type UpdateCategoryRequest struct {
+	Name        string                `json:"name"`
+	Slug        string                `json:"slug"`
+	Description string                `json:"description,omitempty"`
+	Image       multipart.File        `json:"-"`
+	ImageHeader *multipart.FileHeader `json:"-"`
+}
+
 type Category struct {
 	ID          uint64 `json:"id"`
 	Name        string `json:"name"`

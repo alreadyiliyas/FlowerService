@@ -5,7 +5,7 @@ import "errors"
 var (
 	ErrNotFound             = errors.New("запись не найдена")
 	ErrNotFoundCategoryName = errors.New("категория не найдена")
-	ErrNotFoundCategorySlug = errors.New("запись 'slug' не найдена")
+	ErrNotFoundCategorySlug = errors.New("slug не найден")
 
 	ErrInvalidPhoneFormat = errors.New("неверный формат номера телефона")
 	ErrCodeIsExpired      = errors.New("код подтверждения истек")

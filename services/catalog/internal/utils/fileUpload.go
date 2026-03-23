@@ -100,3 +100,35 @@ func DeleteFileIfExists(path string) {
 	}
 	_ = os.Remove(path)
 }
+
+type ReplaceImageParams struct {
+	File             multipart.File
+	Header           *multipart.FileHeader
+	ExistingPublicURL string
+	AllowedExt       []string
+}
+
+func ReplaceImage(params ReplaceImageParams) (*UploadedFile, error) {
+	if params.ExistingPublicURL == "" {
+		return nil, fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, "отсутствует текущий url картинки")
+	}
+
+	_, err := ValidateImageExtension(params.Header.Filename, params.AllowedExt)
+	if err != nil {
+		return nil, err
+	}
+
+	fullPath := filepath.FromSlash(strings.TrimPrefix(params.ExistingPublicURL, "/"))
+	if err := EnsureDir(filepath.Dir(fullPath)); err != nil {
+		return nil, err
+	}
+	if err := SaveUploadedFile(params.File, fullPath); err != nil {
+		return nil, err
+	}
+
+	return &UploadedFile{
+		FileName:  filepath.Base(fullPath),
+		FullPath:  fullPath,
+		PublicURL: params.ExistingPublicURL,
+	}, nil
+}

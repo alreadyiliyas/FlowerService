@@ -34,3 +34,26 @@ func ValidateCategory(in dto.CreateCategoryRequest) (*entities.Category, error) 
 		Description: &description,
 	}, nil
 }
+
+func ValidateCategoryUpdate(in dto.UpdateCategoryRequest) (*entities.Category, error) {
+	name := strings.TrimSpace(in.Name)
+	slug := strings.TrimSpace(strings.ToLower(in.Slug))
+	description := strings.TrimSpace(in.Description)
+
+	if slug != "" && !categorySlugRegexp.MatchString(slug) {
+		return nil, fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, "slug должен содержать только латиницу, цифры и дефис")
+	}
+
+	return &entities.Category{
+		Name:        stringPtrOrNil(name),
+		Slug:        stringPtrOrNil(slug),
+		Description: stringPtrOrNil(description),
+	}, nil
+}
+
+func stringPtrOrNil(v string) *string {
+	if v == "" {
+		return nil
+	}
+	return &v
+}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/ilyas/flower/services/catalog/internal/config"
 	"github.com/ilyas/flower/services/catalog/internal/httpserver"
+	cacherepo "github.com/ilyas/flower/services/catalog/internal/repositories/cache"
 	categoriesrepo "github.com/ilyas/flower/services/catalog/internal/repositories/categories"
 	productsrepo "github.com/ilyas/flower/services/catalog/internal/repositories/products"
 	redisclient "github.com/ilyas/flower/services/catalog/internal/redis"
@@ -49,8 +50,9 @@ func Run() error {
 
 	categoriesRepository := categoriesrepo.NewTarantoolRepository(tntConn)
 	productsRepository := productsrepo.NewTarantoolRepository(tntConn)
+	cacheRepository := cacherepo.NewRedisRepository(redisConn)
 
-	cu := usecaseCateg.NewCategoriesUsecase(categoriesRepository)
+	cu := usecaseCateg.NewCategoriesUsecase(categoriesRepository, cacheRepository)
 	pu := usecaseProd.NewproductsUsecase(productsRepository)
 
 	httpSrv := httpserver.New(httpserver.Config{

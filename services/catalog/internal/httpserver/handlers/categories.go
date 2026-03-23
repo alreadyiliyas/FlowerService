@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/ilyas/flower/services/catalog/internal/apperrors"
 	"github.com/ilyas/flower/services/catalog/internal/dto"
@@ -90,11 +90,28 @@ func (h *CategoriesHandler) UpdateCategory(w http.ResponseWriter, r *http.Reques
 		utils.Send(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
-	var req dto.Category
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
+	r.Body = http.MaxBytesReader(w, r.Body, utils.CategoryMaxUploadSize)
+	if err := r.ParseMultipartForm(utils.CategoryMaxUploadSize); err != nil {
+		utils.Send(w, http.StatusBadRequest, nil, "invalid multipart form")
 		return
 	}
+
+	req := dto.UpdateCategoryRequest{
+		Name:        r.FormValue("name"),
+		Slug:        r.FormValue("slug"),
+		Description: r.FormValue("description"),
+	}
+
+	file, header, err := r.FormFile("image")
+	if err == nil {
+		req.Image = file
+		req.ImageHeader = header
+	} else if !strings.Contains(err.Error(), "no such file") {
+		utils.Send(w, http.StatusBadRequest, nil, "invalid image")
+		return
+	}
+
 	resp, err := h.usecase.UpdateCategory(r.Context(), id, req)
 	if err != nil {
 		switch {
@@ -102,6 +119,8 @@ func (h *CategoriesHandler) UpdateCategory(w http.ResponseWriter, r *http.Reques
 			utils.Send(w, http.StatusBadRequest, nil, err.Error())
 		case errors.Is(err, apperrors.ErrNotFound):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
+		case errors.Is(err, apperrors.ErrDuplicateCategoryName), errors.Is(err, apperrors.ErrDuplicateCategorySlug):
+			utils.Send(w, http.StatusConflict, nil, err.Error())
 		default:
 			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
 		}

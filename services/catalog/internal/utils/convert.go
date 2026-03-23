@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"time"
+
+	"github.com/ilyas/flower/services/catalog/internal/dto"
+	"github.com/ilyas/flower/services/catalog/internal/entities"
 )
 
 func ToString(v interface{}, field string) (string, error) {
@@ -121,4 +125,30 @@ func MarshalToString(v interface{}) (string, error) {
 
 func UnmarshalFromString(s string, v interface{}) error {
 	return json.Unmarshal([]byte(s), v)
+}
+
+func MapCategoryToDTO(item entities.Category) dto.Category {
+	category := dto.Category{}
+	if item.ID != nil {
+		category.ID = *item.ID
+	}
+	if item.Name != nil {
+		category.Name = *item.Name
+	}
+	if item.Slug != nil {
+		category.Slug = *item.Slug
+	}
+	if item.Description != nil {
+		category.Description = *item.Description
+	}
+	if item.ImageURL != nil {
+		category.ImageURL = *item.ImageURL
+	}
+	if item.CreatedAt != nil {
+		category.CreatedAt = item.CreatedAt.Format(time.RFC3339)
+	}
+	if item.UpdatedAt != nil {
+		category.UpdatedAt = item.UpdatedAt.Format(time.RFC3339)
+	}
+	return category
 }

@@ -26,5 +26,9 @@ _G.delete_user = user.delete_user
 
 -- Categories
 _G.create_category = category.create_category
+_G.list_categories = category.list_categories
+_G.get_category = category.get_category
+_G.update_category = category.update_category
+_G.delete_category = category.delete_category
 
 log.info("Tarantool app loaded")

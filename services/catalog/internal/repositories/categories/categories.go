@@ -20,11 +20,145 @@ func NewTarantoolRepository(conn *tnt.Connection) CategoryRepository {
 }
 
 func (r *tarantoolRepository) List(ctx context.Context) ([]entities.Category, error) {
-	return nil, nil
+	req := tnt.NewCallRequest("list_categories").Context(ctx)
+
+	resp, err := r.conn.Do(req).Get()
+	if err != nil {
+		return nil, convert.MapTarantoolError(err)
+	}
+	if len(resp) == 0 {
+		return []entities.Category{}, nil
+	}
+
+	rows, ok := resp[0].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid response payload type: %T", resp[0])
+	}
+
+	result := make([]entities.Category, 0, len(rows))
+	for _, raw := range rows {
+		row, ok := raw.(map[interface{}]interface{})
+		if !ok {
+			if mapped, ok := raw.(map[string]interface{}); ok {
+				row = make(map[interface{}]interface{}, len(mapped))
+				for k, v := range mapped {
+					row[k] = v
+				}
+			} else {
+				return nil, fmt.Errorf("invalid category row type: %T", raw)
+			}
+		}
+
+		id, err := convert.ToUint64(row["id"], "id")
+		if err != nil {
+			return nil, err
+		}
+		name, err := convert.ToString(row["name"], "name")
+		if err != nil {
+			return nil, err
+		}
+		slug, err := convert.ToString(row["slug"], "slug")
+		if err != nil {
+			return nil, err
+		}
+		description, err := convert.ToStringNullable(row["description"], "description")
+		if err != nil {
+			return nil, err
+		}
+		imageURL, err := convert.ToStringNullable(row["image_url"], "image_url")
+		if err != nil {
+			return nil, err
+		}
+		createdUnix, err := convert.ToUint64(row["created_at"], "created_at")
+		if err != nil {
+			return nil, err
+		}
+		updatedUnix, err := convert.ToUint64(row["updated_at"], "updated_at")
+		if err != nil {
+			return nil, err
+		}
+
+		createdAt := time.Unix(int64(createdUnix), 0)
+		updatedAt := time.Unix(int64(updatedUnix), 0)
+
+		result = append(result, entities.Category{
+			ID:          &id,
+			Name:        &name,
+			Slug:        &slug,
+			Description: description,
+			ImageURL:    imageURL,
+			CreatedAt:   &createdAt,
+			UpdatedAt:   &updatedAt,
+		})
+	}
+
+	return result, nil
 }
 
 func (r *tarantoolRepository) Get(ctx context.Context, id uint64) (*entities.Category, error) {
-	return nil, nil
+	req := tnt.NewCallRequest("get_category").Args([]interface{}{id}).Context(ctx)
+
+	resp, err := r.conn.Do(req).Get()
+	if err != nil {
+		return nil, convert.MapTarantoolError(err)
+	}
+	if len(resp) == 0 {
+		return nil, errors.New("empty response from get_category")
+	}
+
+	row, ok := resp[0].(map[interface{}]interface{})
+	if !ok {
+		if mapped, ok := resp[0].(map[string]interface{}); ok {
+			row = make(map[interface{}]interface{}, len(mapped))
+			for k, v := range mapped {
+				row[k] = v
+			}
+		} else {
+			return nil, fmt.Errorf("invalid response payload type: %T", resp[0])
+		}
+	}
+
+	categoryID, err := convert.ToUint64(row["id"], "id")
+	if err != nil {
+		return nil, err
+	}
+	name, err := convert.ToString(row["name"], "name")
+	if err != nil {
+		return nil, err
+	}
+	slug, err := convert.ToString(row["slug"], "slug")
+	if err != nil {
+		return nil, err
+	}
+	description, err := convert.ToStringNullable(row["description"], "description")
+	if err != nil {
+		return nil, err
+	}
+	imageURL, err := convert.ToStringNullable(row["image_url"], "image_url")
+	if err != nil {
+		return nil, err
+	}
+	createdUnix, err := convert.ToUint64(row["created_at"], "created_at")
+	if err != nil {
+		return nil, err
+	}
+	updatedUnix, err := convert.ToUint64(row["updated_at"], "updated_at")
+	if err != nil {
+		return nil, err
+	}
+
+	createdAt := time.Unix(int64(createdUnix), 0)
+	updatedAt := time.Unix(int64(updatedUnix), 0)
+
+	return &entities.Category{
+		ID:          &categoryID,
+		Name:        &name,
+		Slug:        &slug,
+		Description: description,
+		ImageURL:    imageURL,
+		CreatedAt:   &createdAt,
+		UpdatedAt:   &updatedAt,
+	}, nil
 }
 
 func (r *tarantoolRepository) Create(ctx context.Context, in entities.Category) (*entities.Category, error) {
@@ -45,167 +179,48 @@ func (r *tarantoolRepository) Create(ctx context.Context, in entities.Category) 
 		return nil, errors.New("empty response from create_category")
 	}
 
-	var (
-		id          uint64
-		name        string
-		slug        string
-		description *string
-		imageURL    *string
-		createdAt   time.Time
-		updatedAt   time.Time
-	)
-
-	switch row := resp[0].(type) {
-	case []interface{}:
-		if len(row) < 7 {
-			return nil, errors.New("invalid response payload")
-		}
-
-		id, err = convert.ToUint64(row[0], "id")
-		if err != nil {
-			return nil, err
-		}
-		name, err = convert.ToString(row[1], "name")
-		if err != nil {
-			return nil, err
-		}
-		slug, err = convert.ToString(row[2], "slug")
-		if err != nil {
-			return nil, err
-		}
-		description, err = convert.ToStringNullable(row[3], "description")
-		if err != nil {
-			return nil, err
-		}
-		imageURL, err = convert.ToStringNullable(row[4], "image_url")
-		if err != nil {
-			return nil, err
-		}
-		createdUnix, err := convert.ToUint64(row[5], "created_at")
-		if err != nil {
-			return nil, err
-		}
-		updatedUnix, err := convert.ToUint64(row[6], "updated_at")
-		if err != nil {
-			return nil, err
-		}
-		createdAt = time.Unix(int64(createdUnix), 0)
-		updatedAt = time.Unix(int64(updatedUnix), 0)
-	case map[interface{}]interface{}:
-		idRaw, ok := row["id"]
-		if !ok {
-			return nil, errors.New("missing id")
-		}
-		nameRaw, ok := row["name"]
-		if !ok {
-			return nil, errors.New("missing name")
-		}
-		slugRaw, ok := row["slug"]
-		if !ok {
-			return nil, errors.New("missing slug")
-		}
-		createdRaw, ok := row["created_at"]
-		if !ok {
-			return nil, errors.New("missing created_at")
-		}
-		updatedRaw, ok := row["updated_at"]
-		if !ok {
-			return nil, errors.New("missing updated_at")
-		}
-
-		id, err = convert.ToUint64(idRaw, "id")
-		if err != nil {
-			return nil, err
-		}
-		name, err = convert.ToString(nameRaw, "name")
-		if err != nil {
-			return nil, err
-		}
-		slug, err = convert.ToString(slugRaw, "slug")
-		if err != nil {
-			return nil, err
-		}
-		if raw, ok := row["description"]; ok && raw != nil {
-			description, err = convert.ToStringNullable(raw, "description")
-			if err != nil {
-				return nil, err
+	row, ok := resp[0].(map[interface{}]interface{})
+	if !ok {
+		if mapped, ok := resp[0].(map[string]interface{}); ok {
+			row = make(map[interface{}]interface{}, len(mapped))
+			for k, v := range mapped {
+				row[k] = v
 			}
+		} else {
+			return nil, fmt.Errorf("invalid response payload type: %T", resp[0])
 		}
-		if raw, ok := row["image_url"]; ok && raw != nil {
-			imageURL, err = convert.ToStringNullable(raw, "image_url")
-			if err != nil {
-				return nil, err
-			}
-		}
-		createdUnix, err := convert.ToUint64(createdRaw, "created_at")
-		if err != nil {
-			return nil, err
-		}
-		updatedUnix, err := convert.ToUint64(updatedRaw, "updated_at")
-		if err != nil {
-			return nil, err
-		}
-		createdAt = time.Unix(int64(createdUnix), 0)
-		updatedAt = time.Unix(int64(updatedUnix), 0)
-	case map[string]interface{}:
-		idRaw, ok := row["id"]
-		if !ok {
-			return nil, errors.New("missing id")
-		}
-		nameRaw, ok := row["name"]
-		if !ok {
-			return nil, errors.New("missing name")
-		}
-		slugRaw, ok := row["slug"]
-		if !ok {
-			return nil, errors.New("missing slug")
-		}
-		createdRaw, ok := row["created_at"]
-		if !ok {
-			return nil, errors.New("missing created_at")
-		}
-		updatedRaw, ok := row["updated_at"]
-		if !ok {
-			return nil, errors.New("missing updated_at")
-		}
-
-		id, err = convert.ToUint64(idRaw, "id")
-		if err != nil {
-			return nil, err
-		}
-		name, err = convert.ToString(nameRaw, "name")
-		if err != nil {
-			return nil, err
-		}
-		slug, err = convert.ToString(slugRaw, "slug")
-		if err != nil {
-			return nil, err
-		}
-		if raw, ok := row["description"]; ok && raw != nil {
-			description, err = convert.ToStringNullable(raw, "description")
-			if err != nil {
-				return nil, err
-			}
-		}
-		if raw, ok := row["image_url"]; ok && raw != nil {
-			imageURL, err = convert.ToStringNullable(raw, "image_url")
-			if err != nil {
-				return nil, err
-			}
-		}
-		createdUnix, err := convert.ToUint64(createdRaw, "created_at")
-		if err != nil {
-			return nil, err
-		}
-		updatedUnix, err := convert.ToUint64(updatedRaw, "updated_at")
-		if err != nil {
-			return nil, err
-		}
-		createdAt = time.Unix(int64(createdUnix), 0)
-		updatedAt = time.Unix(int64(updatedUnix), 0)
-	default:
-		return nil, fmt.Errorf("invalid category payload type: %T", resp[0])
 	}
+
+	id, err := convert.ToUint64(row["id"], "id")
+	if err != nil {
+		return nil, err
+	}
+	name, err := convert.ToString(row["name"], "name")
+	if err != nil {
+		return nil, err
+	}
+	slug, err := convert.ToString(row["slug"], "slug")
+	if err != nil {
+		return nil, err
+	}
+	description, err := convert.ToStringNullable(row["description"], "description")
+	if err != nil {
+		return nil, err
+	}
+	imageURL, err := convert.ToStringNullable(row["image_url"], "image_url")
+	if err != nil {
+		return nil, err
+	}
+	createdUnix, err := convert.ToUint64(row["created_at"], "created_at")
+	if err != nil {
+		return nil, err
+	}
+	updatedUnix, err := convert.ToUint64(row["updated_at"], "updated_at")
+	if err != nil {
+		return nil, err
+	}
+	createdAt := time.Unix(int64(createdUnix), 0)
+	updatedAt := time.Unix(int64(updatedUnix), 0)
 
 	return &entities.Category{
 		ID:          &id,
@@ -219,9 +234,84 @@ func (r *tarantoolRepository) Create(ctx context.Context, in entities.Category) 
 }
 
 func (r *tarantoolRepository) Update(ctx context.Context, id uint64, in entities.Category) (*entities.Category, error) {
-	return nil, nil
+	req := tnt.NewCallRequest("update_category").
+		Args([]interface{}{
+			id,
+			convert.ValueOrNull(in.Name),
+			convert.ValueOrNull(in.Slug),
+			convert.ValueOrNull(in.Description),
+			convert.ValueOrNull(in.ImageURL),
+		}).
+		Context(ctx)
+
+	resp, err := r.conn.Do(req).Get()
+	if err != nil {
+		return nil, convert.MapTarantoolError(err)
+	}
+	if len(resp) == 0 {
+		return nil, errors.New("empty response from update_category")
+	}
+
+	row, ok := resp[0].(map[interface{}]interface{})
+	if !ok {
+		if mapped, ok := resp[0].(map[string]interface{}); ok {
+			row = make(map[interface{}]interface{}, len(mapped))
+			for k, v := range mapped {
+				row[k] = v
+			}
+		} else {
+			return nil, fmt.Errorf("invalid response payload type: %T", resp[0])
+		}
+	}
+
+	categoryID, err := convert.ToUint64(row["id"], "id")
+	if err != nil {
+		return nil, err
+	}
+	name, err := convert.ToString(row["name"], "name")
+	if err != nil {
+		return nil, err
+	}
+	slug, err := convert.ToString(row["slug"], "slug")
+	if err != nil {
+		return nil, err
+	}
+	description, err := convert.ToStringNullable(row["description"], "description")
+	if err != nil {
+		return nil, err
+	}
+	imageURL, err := convert.ToStringNullable(row["image_url"], "image_url")
+	if err != nil {
+		return nil, err
+	}
+	createdUnix, err := convert.ToUint64(row["created_at"], "created_at")
+	if err != nil {
+		return nil, err
+	}
+	updatedUnix, err := convert.ToUint64(row["updated_at"], "updated_at")
+	if err != nil {
+		return nil, err
+	}
+	createdAt := time.Unix(int64(createdUnix), 0)
+	updatedAt := time.Unix(int64(updatedUnix), 0)
+
+	return &entities.Category{
+		ID:          &categoryID,
+		Name:        &name,
+		Slug:        &slug,
+		Description: description,
+		ImageURL:    imageURL,
+		CreatedAt:   &createdAt,
+		UpdatedAt:   &updatedAt,
+	}, nil
 }
 
 func (r *tarantoolRepository) Delete(ctx context.Context, id uint64) error {
+	req := tnt.NewCallRequest("delete_category").Args([]interface{}{id}).Context(ctx)
+
+	_, err := r.conn.Do(req).Get()
+	if err != nil {
+		return convert.MapTarantoolError(err)
+	}
 	return nil
 }
