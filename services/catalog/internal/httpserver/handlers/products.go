@@ -8,6 +8,7 @@ import (
 
 	"github.com/ilyas/flower/services/catalog/internal/apperrors"
 	"github.com/ilyas/flower/services/catalog/internal/dto"
+	"github.com/ilyas/flower/services/catalog/internal/httpserver/middleware"
 	usecase "github.com/ilyas/flower/services/catalog/internal/usecase/products"
 	"github.com/ilyas/flower/services/catalog/internal/utils"
 )
@@ -64,7 +65,14 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var product dto.Product
+	typeUserID, idOK := middleware.UserIDFromContext(r.Context())
+	typeRole, roleOK := middleware.RoleFromContext(r.Context())
+	if !idOK || !roleOK {
+		utils.Send(w, http.StatusUnauthorized, nil, apperrors.ErrUnauthorized.Error())
+		return
+	}
+
+	var product dto.ProductPayload
 	if err := json.Unmarshal([]byte(payload), &product); err != nil {
 		utils.Send(w, http.StatusBadRequest, nil, "invalid payload")
 		return
@@ -85,6 +93,8 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 
 	req := dto.CreateProductRequest{
 		Product:         product,
+		TypeUserID:      typeUserID,
+		TypeRole:        typeRole,
 		MainImage:       mainImage,
 		MainImageHeader: mainHeader,
 		Images:          images,
@@ -96,6 +106,8 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidInput):
 			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		case errors.Is(err, apperrors.ErrForbidden):
+			utils.Send(w, http.StatusForbidden, nil, err.Error())
 		case errors.Is(err, apperrors.ErrConflict):
 			utils.Send(w, http.StatusConflict, nil, err.Error())
 		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrNotFoundCategoryName):
@@ -127,7 +139,14 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var product dto.Product
+	typeUserID, idOK := middleware.UserIDFromContext(r.Context())
+	typeRole, roleOK := middleware.RoleFromContext(r.Context())
+	if !idOK || !roleOK {
+		utils.Send(w, http.StatusUnauthorized, nil, apperrors.ErrUnauthorized.Error())
+		return
+	}
+
+	var product dto.ProductPayload
 	if err := json.Unmarshal([]byte(payload), &product); err != nil {
 		utils.Send(w, http.StatusBadRequest, nil, "invalid payload")
 		return
@@ -152,6 +171,8 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 
 	req := dto.UpdateProductRequest{
 		Product:         product,
+		TypeUserID:      typeUserID,
+		TypeRole:        typeRole,
 		MainImage:       mainImage,
 		MainImageHeader: mainHeader,
 		Images:          images,
@@ -163,6 +184,8 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidInput):
 			utils.Send(w, http.StatusBadRequest, nil, err.Error())
+		case errors.Is(err, apperrors.ErrForbidden):
+			utils.Send(w, http.StatusForbidden, nil, err.Error())
 		case errors.Is(err, apperrors.ErrConflict):
 			utils.Send(w, http.StatusConflict, nil, err.Error())
 		case errors.Is(err, apperrors.ErrNotFound):
@@ -181,10 +204,25 @@ func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 		utils.Send(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
-	if err := h.usecase.DeleteProduct(r.Context(), id); err != nil {
+
+	typeUserID, idOK := middleware.UserIDFromContext(r.Context())
+	typeRole, roleOK := middleware.RoleFromContext(r.Context())
+	if !idOK || !roleOK {
+		utils.Send(w, http.StatusUnauthorized, nil, apperrors.ErrUnauthorized.Error())
+		return
+	}
+
+	req := dto.DeleteProductRequest{
+		TypeUserID: typeUserID,
+		TypeRole:   typeRole,
+	}
+
+	if err := h.usecase.DeleteProduct(r.Context(), id, req); err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
+		case errors.Is(err, apperrors.ErrForbidden):
+			utils.Send(w, http.StatusForbidden, nil, err.Error())
 		default:
 			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
 		}

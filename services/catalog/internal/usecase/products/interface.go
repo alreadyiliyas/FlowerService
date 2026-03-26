@@ -11,5 +11,5 @@ type ProductUsecase interface {
 	GetProduct(ctx context.Context, id uint64) (*dto.Product, error)
 	CreateProduct(ctx context.Context, in dto.CreateProductRequest) (*dto.Product, error)
 	UpdateProduct(ctx context.Context, id uint64, in dto.UpdateProductRequest) (*dto.Product, error)
-	DeleteProduct(ctx context.Context, id uint64) error
+	DeleteProduct(ctx context.Context, id uint64, in dto.DeleteProductRequest) error
 }

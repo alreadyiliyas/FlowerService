@@ -39,20 +39,43 @@ type Product struct {
 	UpdatedAt    string            `json:"updated_at"`
 }
 
-type CreateProductRequest struct {
-	Product         Product                  `json:"-"`
-	MainImage       multipart.File           `json:"-"`
-	MainImageHeader *multipart.FileHeader    `json:"-"`
-	Images          []multipart.File         `json:"-"`
-	ImageHeaders    []*multipart.FileHeader  `json:"-"`
+type ProductPayload struct {
+	Name         string            `json:"name"`
+	Description  string            `json:"description"`
+	CategoryID   uint64            `json:"category_id"`
+	IsAvailable  bool              `json:"is_available"`
+	Currency     string            `json:"currency"`
+	Sizes        []SizePrice       `json:"sizes"`
+	PricePerStem int               `json:"price_per_stem"`
+	MinStems     int               `json:"min_stems"`
+	MaxStems     int               `json:"max_stems"`
+	Composition  []CompositionItem `json:"composition"`
+	Discount     *Discount         `json:"discount,omitempty"`
 }
 
-type UpdateProductRequest struct {
-	Product         Product                 `json:"-"`
+type CreateProductRequest struct {
+	Product         ProductPayload          `json:"-"`
+	TypeUserID      uint64                  `json:"-"`
+	TypeRole        string                  `json:"-"`
 	MainImage       multipart.File          `json:"-"`
 	MainImageHeader *multipart.FileHeader   `json:"-"`
 	Images          []multipart.File        `json:"-"`
 	ImageHeaders    []*multipart.FileHeader `json:"-"`
+}
+
+type UpdateProductRequest struct {
+	Product         ProductPayload          `json:"-"`
+	TypeUserID      uint64                  `json:"-"`
+	TypeRole        string                  `json:"-"`
+	MainImage       multipart.File          `json:"-"`
+	MainImageHeader *multipart.FileHeader   `json:"-"`
+	Images          []multipart.File        `json:"-"`
+	ImageHeaders    []*multipart.FileHeader `json:"-"`
+}
+
+type DeleteProductRequest struct {
+	TypeUserID uint64 `json:"-"`
+	TypeRole   string `json:"-"`
 }
 
 type CreateCategoryRequest struct {

@@ -5,10 +5,12 @@ import (
 	"errors"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ilyas/flower/services/catalog/internal/apperrors"
 	"github.com/ilyas/flower/services/catalog/internal/dto"
+	"github.com/ilyas/flower/services/catalog/internal/entities"
 	cacherepo "github.com/ilyas/flower/services/catalog/internal/repositories/cache"
 	repo "github.com/ilyas/flower/services/catalog/internal/repositories/products"
 	"github.com/ilyas/flower/services/catalog/internal/utils"
@@ -124,6 +126,12 @@ func (uc *productsUsecase) CreateProduct(ctx context.Context, in dto.CreateProdu
 		return nil, err
 	}
 
+	if err := uc.validateProductTypeRole(in.TypeUserID, in.TypeRole); err != nil {
+		return nil, err
+	}
+
+	product.SellerID = &in.TypeUserID
+
 	defer func() {
 		if in.MainImage != nil {
 			_ = in.MainImage.Close()
@@ -193,6 +201,10 @@ func (uc *productsUsecase) UpdateProduct(ctx context.Context, id uint64, in dto.
 		return nil, err
 	}
 
+	if err := uc.ensureProductAccess(current, in.TypeUserID, in.TypeRole); err != nil {
+		return nil, err
+	}
+
 	product, err := utils.ValidateProduct(in.Product)
 	if err != nil {
 		log.Printf("| usecase | update product payload validation failed: %v", err)
@@ -210,6 +222,7 @@ func (uc *productsUsecase) UpdateProduct(ctx context.Context, id uint64, in dto.
 
 	product.ID = current.ID
 	product.Version = current.Version
+	product.SellerID = current.SellerID
 
 	oldMainImageURL := ""
 	if current.MainImageURL != nil {
@@ -293,13 +306,17 @@ func (uc *productsUsecase) UpdateProduct(ctx context.Context, id uint64, in dto.
 	return dtoResp, nil
 }
 
-func (uc *productsUsecase) DeleteProduct(ctx context.Context, id uint64) error {
+func (uc *productsUsecase) DeleteProduct(ctx context.Context, id uint64, in dto.DeleteProductRequest) error {
 	if uc.products == nil {
 		return apperrors.ErrDB
 	}
 
 	current, err := uc.products.Get(ctx, id)
 	if err != nil {
+		return err
+	}
+
+	if err := uc.ensureProductAccess(current, in.TypeUserID, in.TypeRole); err != nil {
 		return err
 	}
 
@@ -357,4 +374,37 @@ func (uc *productsUsecase) refreshProductCache(ctx context.Context, item *dto.Pr
 	if raw, err := utils.MarshalToString(item); err == nil {
 		_ = uc.cache.Set(ctx, utils.BuildProductKey(item.ID), raw, productCacheTTL)
 	}
+}
+
+func (uc *productsUsecase) validateProductTypeRole(actorUserID uint64, actorRole string) error {
+	if actorUserID == 0 {
+		return apperrors.ErrUnauthorized
+	}
+
+	switch strings.TrimSpace(actorRole) {
+	case "seller", "moderator":
+		return nil
+	default:
+		return apperrors.ErrForbidden
+	}
+}
+
+func (uc *productsUsecase) ensureProductAccess(product *entities.Product, UserID uint64, typeRole string) error {
+	if err := uc.validateProductTypeRole(UserID, typeRole); err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(typeRole) == "moderator" {
+		return nil
+	}
+
+	if product == nil || product.SellerID == nil {
+		return apperrors.ErrForbidden
+	}
+
+	if *product.SellerID != UserID {
+		return apperrors.ErrForbidden
+	}
+
+	return nil
 }

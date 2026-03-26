@@ -52,7 +52,7 @@ func ValidateCategoryUpdate(in dto.UpdateCategoryRequest) (*entities.Category, e
 	}, nil
 }
 
-func ValidateProduct(in dto.Product) (*entities.Product, error) {
+func ValidateProduct(in dto.ProductPayload) (*entities.Product, error) {
 	name := strings.TrimSpace(in.Name)
 	description := strings.TrimSpace(in.Description)
 	currency := strings.TrimSpace(strings.ToUpper(in.Currency))
@@ -62,8 +62,6 @@ func ValidateProduct(in dto.Product) (*entities.Product, error) {
 		return nil, fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, "задано пустое имя продукта")
 	case in.CategoryID == 0:
 		return nil, fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, "не передан category_id")
-	case in.SellerID == 0:
-		return nil, fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, "не передан seller_id")
 	case currency == "":
 		return nil, fmt.Errorf("%w: %v", apperrors.ErrInvalidInput, "не передана валюта")
 	case len(in.Sizes) == 0:
@@ -120,7 +118,6 @@ func ValidateProduct(in dto.Product) (*entities.Product, error) {
 		Name:         &name,
 		Description:  stringPtrOrNil(description),
 		CategoryID:   uint64Ptr(in.CategoryID),
-		SellerID:     uint64Ptr(in.SellerID),
 		IsAvailable:  in.IsAvailable,
 		Currency:     &currency,
 		Sizes:        sizes,
