@@ -171,12 +171,12 @@ func (ac *authUsecase) SendCodeToUpdatePassword(ctx context.Context, phoneNumber
 
 	code, err := utils.RandomConfirmCode()
 	if err != nil {
-		log.Printf("| usecase | SendCodeToUpdatePassword | error when generate code: %w", err)
+		log.Printf("| usecase | SendCodeToUpdatePassword | error when generate code: %v", err)
 		return fmt.Errorf("%w: %v", apperrors.ErrDB, err)
 	}
 
 	if err := ac.cacheRepo.Set(ctx, utils.BuildPasswordUpdateKey(*phoneNumber), code, 30*time.Minute); err != nil {
-		log.Printf("| usecase | SendCodeToUpdatePassword | error to set code: %w", err)
+		log.Printf("| usecase | SendCodeToUpdatePassword | error to set code: %v", err)
 		return fmt.Errorf("%w: %v", apperrors.ErrDB, err)
 	}
 
@@ -445,4 +445,38 @@ func (ac *authUsecase) GetSession(ctx context.Context, sessionID string) (*dto.R
 	}
 
 	return &payload, nil
+}
+
+func (ac *authUsecase) GetUserContext(ctx context.Context, dtoReq dto.GetUserContextRequest) (*dto.GetUserContextResponse, error) {
+	if dtoReq.AccessToken == "" {
+		return nil, fmt.Errorf("%w: access token пустой", apperrors.ErrInvalidInput)
+	}
+
+	claims, err := utils.ParseAccessToken(dtoReq.AccessToken, ac.cfg.JWT.Secret)
+	if err != nil || claims == nil || claims.SessionID == "" {
+		return nil, apperrors.ErrUnauthorized
+	}
+
+	if dtoReq.SessionID != "" && dtoReq.SessionID != claims.SessionID {
+		return nil, apperrors.ErrUnauthorized
+	}
+
+	session, err := ac.GetSession(ctx, claims.SessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	if session.UserID != claims.UserID || session.SessionID != claims.SessionID {
+		return nil, apperrors.ErrUnauthorized
+	}
+
+	return &dto.GetUserContextResponse{
+		UserID:          session.UserID,
+		Role:            session.Role,
+		PhoneNumber:     session.PhoneNumber,
+		SessionID:       session.SessionID,
+		FirstName:       session.FirstName,
+		LastName:        session.LastName,
+		IsAuthenticated: true,
+	}, nil
 }

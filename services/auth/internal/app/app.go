@@ -2,12 +2,15 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/ilyas/flower/services/auth/internal/config"
+	grpcserver "github.com/ilyas/flower/services/auth/internal/grpcserver"
 	"github.com/ilyas/flower/services/auth/internal/httpserver"
 	redisclient "github.com/ilyas/flower/services/auth/internal/redis"
 	authRepo "github.com/ilyas/flower/services/auth/internal/repositories/auth"
@@ -58,11 +61,24 @@ func Run() error {
 		Address:   cfg.HTTP.Address,
 		JWTSecret: cfg.JWT.Secret,
 	}, authUC, userUC)
+	grpcSrv := grpcserver.New(grpcserver.Config{
+		Address: cfg.GRPC.Address,
+	}, authUC)
 
-	fmt.Fprintf(os.Stdout, "auth service listening on %s\n", cfg.HTTP.Address)
+	fmt.Fprintf(os.Stdout, "auth service listening on http=%s grpc=%s\n", cfg.HTTP.Address, cfg.GRPC.Address)
 
-	if err := httpSrv.Start(ctx); err != nil {
-		return fmt.Errorf("http server stopped: %w", err)
+	errCh := make(chan error, 2)
+	go func() {
+		errCh <- httpSrv.Start(ctx)
+	}()
+	go func() {
+		errCh <- grpcSrv.Start(ctx)
+	}()
+
+	for i := 0; i < 2; i++ {
+		if err := <-errCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
 	}
 
 	return nil

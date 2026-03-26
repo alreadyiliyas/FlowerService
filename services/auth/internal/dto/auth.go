@@ -75,3 +75,18 @@ type LogoutRequest struct {
 type LogoutAllRequest struct {
 	PhoneNumber *string `json:"phone_number,omitempty"`
 }
+
+type GetUserContextRequest struct {
+	AccessToken string `json:"access_token"`
+	SessionID   string `json:"session_id,omitempty"`
+}
+
+type GetUserContextResponse struct {
+	UserID          uint64 `json:"user_id"`
+	Role            string `json:"role"`
+	PhoneNumber     string `json:"phone_number"`
+	SessionID       string `json:"session_id"`
+	FirstName       string `json:"first_name,omitempty"`
+	LastName        string `json:"last_name,omitempty"`
+	IsAuthenticated bool   `json:"is_authenticated"`
+}

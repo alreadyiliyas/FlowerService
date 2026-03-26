@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"github.com/ilyas/flower/services/catalog/internal/apperrors"
+	authclient "github.com/ilyas/flower/services/catalog/internal/grpc/authclient"
 	"github.com/ilyas/flower/services/catalog/internal/utils"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type contextKey string
@@ -38,7 +41,7 @@ func SessionIDFromContext(ctx context.Context) (string, bool) {
 	return v, ok
 }
 
-func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
+func AuthMiddleware(authClient authclient.Client) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -53,21 +56,23 @@ func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 				return
 			}
 
-			claims, err := utils.ParseAccessToken(parts[1], jwtSecret)
-			if err != nil || claims == nil || claims.SessionID == "" {
-				utils.Send(w, http.StatusUnauthorized, nil, apperrors.ErrUnauthorized.Error())
+			resp, err := authClient.GetUserContext(r.Context(), parts[1], r.Header.Get("X-Session-Id"))
+			if err != nil {
+				switch status.Code(err) {
+				case codes.InvalidArgument:
+					utils.Send(w, http.StatusBadRequest, nil, err.Error())
+				case codes.Unauthenticated:
+					utils.Send(w, http.StatusUnauthorized, nil, apperrors.ErrUnauthorized.Error())
+				default:
+					utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+				}
 				return
 			}
 
-			if headerSessionID := r.Header.Get("X-Session-Id"); headerSessionID != "" && headerSessionID != claims.SessionID {
-				utils.Send(w, http.StatusUnauthorized, nil, apperrors.ErrUnauthorized.Error())
-				return
-			}
-
-			ctx := context.WithValue(r.Context(), ctxUserID, claims.UserID)
-			ctx = context.WithValue(ctx, ctxRole, claims.Role)
-			ctx = context.WithValue(ctx, ctxPhone, claims.Phone)
-			ctx = context.WithValue(ctx, ctxSessionID, claims.SessionID)
+			ctx := context.WithValue(r.Context(), ctxUserID, resp.UserID)
+			ctx = context.WithValue(ctx, ctxRole, resp.Role)
+			ctx = context.WithValue(ctx, ctxPhone, resp.PhoneNumber)
+			ctx = context.WithValue(ctx, ctxSessionID, resp.SessionID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

@@ -11,6 +11,10 @@ type HTTPConfig struct {
 	Address string
 }
 
+type AuthGRPCConfig struct {
+	Addr string
+}
+
 type TarantoolConfig struct {
 	Addr     string
 	User     string
@@ -31,6 +35,7 @@ type JWTConfig struct {
 }
 
 type Config struct {
+	AuthGRPC  AuthGRPCConfig
 	HTTP      HTTPConfig
 	Tarantool TarantoolConfig
 	Redis     RedisConfig
@@ -42,6 +47,8 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	authGRPCAddr := getEnvOrDefault("AUTH_GRPC_ADDR", "auth:9090")
+
 	tntAddr, err := getEnv("TARANTOOL_ADDR")
 	if err != nil {
 		return nil, err
@@ -94,6 +101,9 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
+		AuthGRPC: AuthGRPCConfig{
+			Addr: authGRPCAddr,
+		},
 		HTTP: HTTPConfig{
 			Address: httpAddr,
 		},
@@ -122,4 +132,12 @@ func getEnv(key string) (string, error) {
 		return "", fmt.Errorf("environment variable %s is not set", key)
 	}
 	return v, nil
+}
+
+func getEnvOrDefault(key, fallback string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	return v
 }

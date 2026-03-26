@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"github.com/gorilla/mux"
+	authclient "github.com/ilyas/flower/services/catalog/internal/grpc/authclient"
 	"github.com/ilyas/flower/services/catalog/internal/httpserver/handlers"
 	"github.com/ilyas/flower/services/catalog/internal/httpserver/middleware"
 	usecaseCateg "github.com/ilyas/flower/services/catalog/internal/usecase/categories"
@@ -9,7 +10,7 @@ import (
 )
 
 // newRouter настраивает маршруты HTTP-сервера.
-func newRouter(cu usecaseCateg.UsecaseCategories, pu usecaseProd.ProductUsecase, jwtSecret string) *mux.Router {
+func newRouter(cu usecaseCateg.UsecaseCategories, pu usecaseProd.ProductUsecase, authClient authclient.Client) *mux.Router {
 	router := mux.NewRouter()
 
 	healthHandler := handlers.NewHealthHandler()
@@ -27,14 +28,14 @@ func newRouter(cu usecaseCateg.UsecaseCategories, pu usecaseProd.ProductUsecase,
 	catalogRouter.HandleFunc("/categories/{id}", categoriesHandler.GetCategory).Methods("GET")
 
 	protected := catalogRouter.NewRoute().Subrouter()
-	protected.Use(middleware.AuthMiddleware(jwtSecret))
+	protected.Use(middleware.AuthMiddleware(authClient))
 	protected.Use(middleware.RequireRoles("seller", "moderator"))
 	protected.HandleFunc("/products", productsHandler.CreateProduct).Methods("POST")
 	protected.HandleFunc("/products/{id}", productsHandler.UpdateProduct).Methods("PATCH")
 	protected.HandleFunc("/products/{id}", productsHandler.DeleteProduct).Methods("DELETE")
 
 	catAdmin := catalogRouter.NewRoute().Subrouter()
-	catAdmin.Use(middleware.AuthMiddleware(jwtSecret))
+	catAdmin.Use(middleware.AuthMiddleware(authClient))
 	catAdmin.Use(middleware.RequireRoles("seller", "moderator"))
 	catAdmin.HandleFunc("/categories", categoriesHandler.CreateCategory).Methods("POST")
 	catAdmin.HandleFunc("/categories/{id}", categoriesHandler.UpdateCategory).Methods("PATCH")

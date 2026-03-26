@@ -4,14 +4,14 @@ import (
 	"context"
 	"net/http"
 
+	authclient "github.com/ilyas/flower/services/catalog/internal/grpc/authclient"
 	usecaseCateg "github.com/ilyas/flower/services/catalog/internal/usecase/categories"
 	usecaseProd "github.com/ilyas/flower/services/catalog/internal/usecase/products"
 )
 
 // Config описывает настройки HTTP-сервера.
 type Config struct {
-	Address   string
-	JWTSecret string
+	Address string
 }
 
 // Server инкапсулирует http.Server.
@@ -20,8 +20,8 @@ type Server struct {
 }
 
 // New создаёт новый HTTP-сервер с переданным конфигом.
-func New(cfg Config, cu usecaseCateg.UsecaseCategories, pu usecaseProd.ProductUsecase) *Server {
-	handler := newRouter(cu, pu, cfg.JWTSecret)
+func New(cfg Config, cu usecaseCateg.UsecaseCategories, pu usecaseProd.ProductUsecase, authClient authclient.Client) *Server {
+	handler := newRouter(cu, pu, authClient)
 
 	return &Server{
 		httpServer: &http.Server{
@@ -31,9 +31,7 @@ func New(cfg Config, cu usecaseCateg.UsecaseCategories, pu usecaseProd.ProductUs
 	}
 }
 
-// Start запускает HTTP-сервер и слушает до остановки.
 func (s *Server) Start(ctx context.Context) error {
-	// Грейсфул-шатдаун по завершению контекста.
 	go func() {
 		<-ctx.Done()
 		_ = s.httpServer.Shutdown(context.Background())

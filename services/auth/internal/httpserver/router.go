@@ -19,11 +19,6 @@ func newRouter(authUC authusecase.UsecaseAuth, userUC userusecase.UsecaseUser, j
 	healthRouter.HandleFunc("/live", healthHandler.Live).Methods("GET")
 	healthRouter.HandleFunc("/ready", healthHandler.Ready).Methods("GET")
 
-	// Прописать Middleware
-	// router.Use(loggingMiddleware)
-	// router.Use(corsMiddleware)
-	// authRouter.Use(authMiddleware)
-
 	authHandler := handlers.NewAuthHandler(authUC)
 	userHandler := handlers.NewUserHandler(userUC)
 
