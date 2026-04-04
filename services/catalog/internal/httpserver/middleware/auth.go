@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 
@@ -58,6 +59,7 @@ func AuthMiddleware(authClient authclient.Client) func(http.Handler) http.Handle
 
 			resp, err := authClient.GetUserContext(r.Context(), parts[1], r.Header.Get("X-Session-Id"))
 			if err != nil {
+				log.Printf("| middleware | failed to get user: %v", err)
 				switch status.Code(err) {
 				case codes.InvalidArgument:
 					utils.Send(w, http.StatusBadRequest, nil, err.Error())

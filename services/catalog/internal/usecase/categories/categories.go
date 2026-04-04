@@ -99,6 +99,7 @@ func (uc *categoriesUsecase) GetCategory(ctx context.Context, id uint64) (*dto.C
 
 	item, err := uc.categories.Get(ctx, id)
 	if err != nil {
+		log.Printf("| usecase | failed to get category: %v", err)
 		return nil, err
 	}
 
@@ -160,11 +161,13 @@ func (uc *categoriesUsecase) CreateCategory(ctx context.Context, in dto.CreateCa
 
 func (uc *categoriesUsecase) UpdateCategory(ctx context.Context, id uint64, in dto.UpdateCategoryRequest) (*dto.Category, error) {
 	if uc.categories == nil {
+		log.Printf("| usecase | update category categoriesUsecase is nil")
 		return nil, apperrors.ErrDB
 	}
 
 	current, err := uc.GetCategory(ctx, id)
 	if err != nil {
+		log.Printf("| usecase | failed to get category: %v", err)
 		return nil, err
 	}
 
@@ -234,6 +237,7 @@ func (uc *categoriesUsecase) UpdateCategory(ctx context.Context, id uint64, in d
 
 	updated, err := uc.categories.Update(ctx, id, entity)
 	if err != nil {
+		log.Printf("| usecase | failed to update category: %v", err)
 		return nil, err
 	}
 
@@ -244,15 +248,18 @@ func (uc *categoriesUsecase) UpdateCategory(ctx context.Context, id uint64, in d
 
 func (uc *categoriesUsecase) DeleteCategory(ctx context.Context, id uint64) error {
 	if uc.categories == nil {
+		log.Printf("| usecase | delete category categoriesUsecase is nil")
 		return apperrors.ErrDB
 	}
 
 	current, err := uc.GetCategory(ctx, id)
 	if err != nil {
+		log.Printf("| usecase | failed to get category: %v", err)
 		return err
 	}
 
 	if err := uc.categories.Delete(ctx, id); err != nil {
+		log.Printf("| usecase | failed to delete category: %v", err)
 		return err
 	}
 
@@ -264,11 +271,13 @@ func (uc *categoriesUsecase) DeleteCategory(ctx context.Context, id uint64) erro
 		_ = uc.cache.Del(ctx, utils.BuildCategoriesListKey())
 	}
 
+	log.Printf("| usecase | delete category successful : %v", err)
 	return nil
 }
 
 func (uc *categoriesUsecase) refreshCategoryCache(ctx context.Context, item *dto.Category) {
 	if uc.cache == nil || item == nil {
+		log.Printf("| usecase | failed cache or item is nil")
 		return
 	}
 

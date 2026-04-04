@@ -19,6 +19,10 @@ func BuildProductKey(id uint64) string {
 	return "product:" + strconv.FormatUint(id, 10)
 }
 
+func BuildProductFlightKey(id uint64) string {
+	return "product:get:" + strconv.FormatUint(id, 10)
+}
+
 func BuildProductsListVersionKey() string {
 	return "products:list:version"
 }

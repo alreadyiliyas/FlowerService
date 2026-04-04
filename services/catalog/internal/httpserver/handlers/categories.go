@@ -22,8 +22,12 @@ func NewCategoriesHandler(uc usecase.UsecaseCategories) *CategoriesHandler {
 func (h *CategoriesHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.usecase.ListCategories(r.Context())
 	if err != nil {
-		utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
-		return
+		switch {
+		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrNotFoundCategoryName), errors.Is(err, apperrors.ErrNotFoundCategorySlug):
+			utils.Send(w, http.StatusNotFound, nil, err.Error())
+		default:
+			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
+		}
 	}
 	utils.Send(w, http.StatusOK, resp, "ok")
 }
@@ -37,7 +41,7 @@ func (h *CategoriesHandler) GetCategory(w http.ResponseWriter, r *http.Request) 
 	resp, err := h.usecase.GetCategory(r.Context(), id)
 	if err != nil {
 		switch {
-		case errors.Is(err, apperrors.ErrNotFound):
+		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrNotFoundCategoryName), errors.Is(err, apperrors.ErrNotFoundCategorySlug):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
 		default:
 			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")
@@ -117,7 +121,7 @@ func (h *CategoriesHandler) UpdateCategory(w http.ResponseWriter, r *http.Reques
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidInput):
 			utils.Send(w, http.StatusBadRequest, nil, err.Error())
-		case errors.Is(err, apperrors.ErrNotFound):
+		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrNotFoundCategoryName), errors.Is(err, apperrors.ErrNotFoundCategorySlug):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
 		case errors.Is(err, apperrors.ErrDuplicateCategoryName), errors.Is(err, apperrors.ErrDuplicateCategorySlug):
 			utils.Send(w, http.StatusConflict, nil, err.Error())
@@ -137,7 +141,7 @@ func (h *CategoriesHandler) DeleteCategory(w http.ResponseWriter, r *http.Reques
 	}
 	if err := h.usecase.DeleteCategory(r.Context(), id); err != nil {
 		switch {
-		case errors.Is(err, apperrors.ErrNotFound):
+		case errors.Is(err, apperrors.ErrNotFound), errors.Is(err, apperrors.ErrNotFoundCategoryName), errors.Is(err, apperrors.ErrNotFoundCategorySlug):
 			utils.Send(w, http.StatusNotFound, nil, err.Error())
 		default:
 			utils.Send(w, http.StatusInternalServerError, nil, "internal server error")

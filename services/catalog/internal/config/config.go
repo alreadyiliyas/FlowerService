@@ -47,7 +47,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	authGRPCAddr := getEnvOrDefault("AUTH_GRPC_ADDR", "auth:9090")
+	authGRPCAddr, err := getEnv("AUTH_GRPC_ADDR")
+	if err != nil {
+		return nil, err
+	}
 
 	tntAddr, err := getEnv("TARANTOOL_ADDR")
 	if err != nil {
@@ -132,12 +135,4 @@ func getEnv(key string) (string, error) {
 		return "", fmt.Errorf("environment variable %s is not set", key)
 	}
 	return v, nil
-}
-
-func getEnvOrDefault(key, fallback string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		return fallback
-	}
-	return v
 }

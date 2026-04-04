@@ -21,19 +21,22 @@ import (
 const productCacheTTL = 15 * time.Minute
 
 type productsUsecase struct {
-	products repo.ProductRepository
-	cache    cacherepo.CacheRepository
+	products     repo.ProductRepository
+	cache        cacherepo.CacheRepository
+	singleFlight *utils.SingleFlight[*dto.Product]
 }
 
 func NewproductsUsecase(products repo.ProductRepository, cache cacherepo.CacheRepository) ProductUsecase {
 	return &productsUsecase{
-		products: products,
-		cache:    cache,
+		products:     products,
+		cache:        cache,
+		singleFlight: utils.NewSingleFlight[*dto.Product](),
 	}
 }
 
 func (uc *productsUsecase) ListProducts(ctx context.Context, filter dto.ProductFilter) (dto.PaginatedProducts, error) {
 	if uc.products == nil {
+		log.Printf("| usecase | list products is nil")
 		return dto.PaginatedProducts{}, apperrors.ErrDB
 	}
 
@@ -77,6 +80,7 @@ func (uc *productsUsecase) ListProducts(ctx context.Context, filter dto.ProductF
 
 func (uc *productsUsecase) GetProduct(ctx context.Context, id uint64) (*dto.Product, error) {
 	if uc.products == nil {
+		log.Printf("| usecase | get products is nil")
 		return nil, apperrors.ErrDB
 	}
 
@@ -95,23 +99,47 @@ func (uc *productsUsecase) GetProduct(ctx context.Context, id uint64) (*dto.Prod
 		}
 	}
 
-	item, err := uc.products.Get(ctx, id)
+	flightKey := utils.BuildProductFlightKey(id)
+	product, err := uc.singleFlight.Do(ctx, flightKey, func(ctx context.Context) (*dto.Product, error) {
+		if uc.cache != nil {
+			cached, err := uc.cache.Get(ctx, itemKey)
+			switch {
+			case err == nil:
+				var item dto.Product
+				if err := utils.UnmarshalFromString(cached, &item); err == nil {
+					return &item, nil
+				}
+			case errors.Is(err, redis.Nil):
+			default:
+				log.Printf("| usecase | get product cache recheck failed: %v", err)
+			}
+		}
+
+		item, err := uc.products.Get(ctx, id)
+		if err != nil {
+			log.Printf("| usecase | failed to get product: %v", err)
+			return nil, err
+		}
+
+		resp := utils.MapProductEntityToDTO(*item)
+		if uc.cache != nil {
+			if raw, err := utils.MarshalToString(resp); err == nil {
+				_ = uc.cache.Set(ctx, itemKey, raw, productCacheTTL)
+			}
+		}
+
+		return resp, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	resp := utils.MapProductEntityToDTO(*item)
-	if uc.cache != nil {
-		if raw, err := utils.MarshalToString(resp); err == nil {
-			_ = uc.cache.Set(ctx, itemKey, raw, productCacheTTL)
-		}
-	}
-
-	return resp, nil
+	return product, nil
 }
 
 func (uc *productsUsecase) CreateProduct(ctx context.Context, in dto.CreateProductRequest) (*dto.Product, error) {
 	if uc.products == nil {
+		log.Printf("| usecase | create products is nil")
 		return nil, apperrors.ErrDB
 	}
 
@@ -127,6 +155,7 @@ func (uc *productsUsecase) CreateProduct(ctx context.Context, in dto.CreateProdu
 	}
 
 	if err := uc.validateProductTypeRole(in.TypeUserID, in.TypeRole); err != nil {
+		log.Printf("| usecase | failed to validate product type role: %v", err)
 		return nil, err
 	}
 
